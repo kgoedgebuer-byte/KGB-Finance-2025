@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>KGB Finance 2025 — Web</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+<header>
+  <h1>KGB Finance 2025 — Web</h1>
+  <nav>
+    <button data-tab="dashboard" class="tab active">Dashboard</button>
+    <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="io" class="tab">Export / Import</button>
+  </nav>
+</header>
+
+<main>
+  <section id="dashboard" class="panel active">
+    <div class="cards">
+      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0.00</div></div>
+      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0.00</div></div>
+      <div class="card saldo"><div class="k">Saldo</div><div class="v" id="totSaldo">0.00</div></div>
+    </div>
+    <canvas id="saldoChart" height="140"></canvas>
+  </section>
+
+  <section id="budget" class="panel">
+    <form id="addForm">
+      <input id="date" type="date" required />
+      <input id="cat" type="text" placeholder="Categorie" required />
+      <input id="desc" type="text" placeholder="Omschrijving" />
+      <input id="inc" type="number" step="0.01" placeholder="Inkomen">
+      <input id="exp" type="number" step="0.01" placeholder="Uitgave">
+      <button type="submit">Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tbl">
+        <thead>
+          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="io" class="panel">
+    <div class="io-actions">
+      <button id="btnExport">Export JSON</button>
+      <label class="fileLabel">Import JSON <input id="fileImport" type="file" accept="application/json"></label>
+      <button id="btnReset" class="danger">Reset (alle data)</button>
+    </div>
+    <p class="muted">Data staat lokaal in je browser (localStorage). Delen? Export JSON.</p>
+  </section>
+</main>
+
+<footer><small>PWA — werkt offline na 1x laden.</small></footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+}
+</script>
+</body>
+</html>

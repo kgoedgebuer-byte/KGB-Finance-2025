@@ -1,0 +1,27 @@
+:root{
+  --bg:#f6faff; --card:#ffffff; --txt:#0f172a; --muted:#64748b;
+  --acc:#2563eb; --ok:#16a34a; --grid:#e2e8f0; --shadow:0 6px 20px rgba(2,6,23,.08);
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+header{padding:16px 20px}
+h1{margin:0 0 10px;font-size:22px}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:1px solid var(--acc);background:#eff6ff;color:#0b3aa3;border-radius:999px;padding:8px 14px;cursor:pointer}
+.tab.active{background:var(--acc);color:#fff}
+main{padding:6px 20px 20px}.panel{display:none}.panel.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--grid);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+.card .k{font-size:13px;color:var(--muted)} .card .v{margin-top:6px;font-size:24px;font-weight:700}
+.card.saldo .v{color:var(--ok)}
+.tableWrap{overflow:auto;border:1px solid var(--grid);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:14px} th,td{padding:10px 8px;border-bottom:1px solid var(--grid);text-align:left;white-space:nowrap}
+thead th{position:sticky;top:0;background:#eef2ff;border-bottom:1px solid #c7d2fe}
+form#addForm{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:8px;margin:10px 0}
+input,button{padding:10px 12px;border:1px solid var(--grid);border-radius:12px;background:#fff} button{cursor:pointer}
+button.danger{border-color:#fecaca;background:#fee2e2;color:#b91c1c}
+.fileLabel{display:inline-flex;align-items:center;gap:6px;padding:10px 12px;border:1px dashed var(--grid);border-radius:12px;background:#fff;cursor:pointer}
+.fileLabel input{display:none}
+footer{padding:16px 20px;color:var(--muted)} .muted{color:var(--muted)}
+.actions{display:flex;gap:6px} .actions button{padding:6px 10px}
+@media (max-width:900px){ form#addForm{grid-template-columns:1fr 1fr} }
