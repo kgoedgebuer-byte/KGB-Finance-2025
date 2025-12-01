@@ -3,20 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>KGB Finance 2025 — Web</title>
+  <title>KGB Finance 2025 — Volledige Webapp</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#7c9cf5">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
-<header>
-  <h1>KGB Finance 2025 — Web</h1>
-  <nav>
+<header class="bar">
+  <h1>💰 KGB Finance 2025 — Web (Full)</h1>
+  <nav class="tabs">
     <button data-tab="dashboard" class="tab active">Dashboard</button>
     <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="invest" class="tab">Beleggingen</button>
+    <button data-tab="crypto" class="tab">Crypto</button>
+    <button data-tab="agenda" class="tab">Agenda</button>
+    <button data-tab="family" class="tab">Familie</button>
+    <button data-tab="theme" class="tab">Thema</button>
     <button data-tab="io" class="tab">Export / Import</button>
   </nav>
 </header>
@@ -24,43 +29,155 @@
 <main>
   <section id="dashboard" class="panel active">
     <div class="cards">
-      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0.00</div></div>
-      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0.00</div></div>
-      <div class="card saldo"><div class="k">Saldo</div><div class="v" id="totSaldo">0.00</div></div>
+      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
+      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
+      <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
+      <div class="card"><div class="k">Beleggingen (netto)</div><div class="v" id="totInvest">0,00</div></div>
+      <div class="card"><div class="k">Crypto (netto)</div><div class="v" id="totCrypto">0,00</div></div>
     </div>
-    <canvas id="saldoChart" height="140"></canvas>
+    <div class="chartBar">
+      <div class="left">
+        <strong>Grafiek:</strong>
+        <label><input type="radio" name="ctype" value="line" checked> Lijn</label>
+        <label><input type="radio" name="ctype" value="bar"> Balk</label>
+        <label><input type="radio" name="ctype" value="pie"> Cirkel</label>
+      </div>
+      <div class="right">
+        <button id="btnDemo">Demo-data</button>
+        <button id="btnClear">Alles wissen</button>
+      </div>
+    </div>
+    <canvas id="saldoChart" height="160"></canvas>
   </section>
 
   <section id="budget" class="panel">
-    <form id="addForm">
-      <input id="date" type="date" required />
-      <input id="cat" type="text" placeholder="Categorie" required />
-      <input id="desc" type="text" placeholder="Omschrijving" />
-      <input id="inc" type="number" step="0.01" placeholder="Inkomen">
-      <input id="exp" type="number" step="0.01" placeholder="Uitgave">
-      <button type="submit">Toevoegen</button>
+    <h2>📋 Budget</h2>
+    <form id="addBudget" class="addForm">
+      <input id="b_date" type="date" required />
+      <input id="b_cat" type="text" placeholder="Categorie" required />
+      <input id="b_desc" type="text" placeholder="Omschrijving" />
+      <input id="b_inc" type="number" step="0.01" inputmode="decimal" placeholder="Inkomen">
+      <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
+      <button type="submit">➕ Toevoegen</button>
     </form>
     <div class="tableWrap">
-      <table id="tbl">
+      <table id="tblBudget" data-key="budget" class="grid">
         <thead>
-          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
-        </thead>
-        <tbody></tbody>
+        <tr>
+          <th>Datum</th><th>Categorie</th><th>Omschrijving</th>
+          <th>Inkomen</th><th>Uitgave</th><th>Saldo</th><th>Acties</th>
+        </tr>
+        </thead><tbody></tbody>
       </table>
     </div>
   </section>
 
+  <section id="invest" class="panel">
+    <h2>💼 Beleggingen</h2>
+    <form id="addInvest" class="addForm">
+      <input id="i_date" type="date" required />
+      <input id="i_name" type="text" placeholder="Aandeel" required />
+      <input id="i_qty" type="number" step="0.0001" inputmode="decimal" placeholder="Aantal" required />
+      <input id="i_buy" type="number" step="0.01" inputmode="decimal" placeholder="Aankoop">
+      <input id="i_sell" type="number" step="0.01" inputmode="decimal" placeholder="Verkoop">
+      <input id="i_div" type="number" step="0.01" inputmode="decimal" placeholder="Dividend">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tblInvest" data-key="investments" class="grid">
+        <thead>
+        <tr>
+          <th>Datum</th><th>Aandeel</th><th>Aantal</th>
+          <th>Aankoop</th><th>Verkoop</th><th>Dividend</th>
+          <th>Winst</th><th>Verlies</th><th>Acties</th>
+        </tr>
+        </thead><tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="crypto" class="panel">
+    <h2>🪙 Crypto</h2>
+    <form id="addCrypto" class="addForm">
+      <input id="c_date" type="date" required />
+      <input id="c_token" type="text" placeholder="Token" required />
+      <input id="c_qty" type="number" step="0.0001" inputmode="decimal" placeholder="Aantal" required />
+      <input id="c_buy" type="number" step="0.01" inputmode="decimal" placeholder="Aankoop">
+      <input id="c_sell" type="number" step="0.01" inputmode="decimal" placeholder="Verkoop">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tblCrypto" data-key="crypto" class="grid">
+        <thead>
+        <tr>
+          <th>Datum</th><th>Token</th><th>Aantal</th>
+          <th>Aankoop</th><th>Verkoop</th>
+          <th>Winst</th><th>Verlies</th><th>Acties</th>
+        </tr>
+        </thead><tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="agenda" class="panel">
+    <h2>🗓️ Agenda</h2>
+    <form id="addAgenda" class="addForm">
+      <input id="a_date" type="date" required />
+      <input id="a_task" type="text" placeholder="Taak" required />
+      <input id="a_status" type="text" placeholder="Status" />
+      <input id="a_meet" type="text" placeholder="Afspraak" />
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tblAgenda" data-key="agenda" class="grid">
+        <thead>
+        <tr><th>Datum</th><th>Taak</th><th>Status</th><th>Afspraak</th><th>Acties</th></tr>
+        </thead><tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="family" class="panel">
+    <h2>👨‍👩‍👧 Familie</h2>
+    <p class="muted">Deel deze link met familie. Data blijft per toestel. Delen? Gebruik Export/Import JSON.</p>
+  </section>
+
+  <section id="theme" class="panel">
+    <h2>🎨 Thema</h2>
+    <div class="themeBox">
+      <label>Onderdeel:
+        <select id="themeTarget">
+          <option value="bg">Achtergrond</option>
+          <option value="card">Kaarten/Tabel</option>
+          <option value="acc">Accent/Knoppen</option>
+          <option value="grid">Rasterlijnen</option>
+          <option value="txt">Tekst</option>
+        </select>
+      </label>
+      <div id="swatches" class="swatches"></div>
+      <div class="sliders">
+        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
+        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
+      </div>
+      <div class="themeBtns">
+        <button id="themeReset">Reset</button>
+        <button id="themeSave">Opslaan</button>
+      </div>
+    </div>
+  </section>
+
   <section id="io" class="panel">
+    <h2>⬇️ Export / ⬆️ Import</h2>
     <div class="io-actions">
       <button id="btnExport">Export JSON</button>
       <label class="fileLabel">Import JSON <input id="fileImport" type="file" accept="application/json"></label>
-      <button id="btnReset" class="danger">Reset (alle data)</button>
+      <button id="btnReset" class="danger">Reset (alles wissen)</button>
     </div>
-    <p class="muted">Data staat lokaal in je browser (localStorage). Delen? Export JSON.</p>
+    <p class="muted">PWA – werkt offline na 1× laden.</p>
   </section>
 </main>
 
-<footer><small>PWA — werkt offline na 1x laden.</small></footer>
+<footer><small>© KGB Finance 2025</small></footer>
 
 <script>
 if ('serviceWorker' in navigator) {
