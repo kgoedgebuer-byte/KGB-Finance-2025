@@ -1,0 +1,12 @@
+{
+  "name": "KGB Finance 2025 — Web (Full)",
+  "short_name": "KGB Finance",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7ff",
+  "theme_color": "#7c9cf5",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "256x256", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
