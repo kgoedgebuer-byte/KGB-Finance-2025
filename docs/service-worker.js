@@ -1,5 +1,5 @@
 "use strict";
-const CACHE = "kgb-finance-pwa-v1";
+const CACHE = "kgb-finance-pwa-v2";
 const ASSETS = ["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icons/icon.svg"];
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
