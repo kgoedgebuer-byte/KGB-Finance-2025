@@ -1,0 +1,7 @@
+/* Jaar-knop styling + compacte chips */
+.kgb-year-wrap{display:inline-flex;align-items:center;gap:8px;margin:0 8px 8px 0}
+.kgb-year-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kgb-year-chip label{font-weight:600;color:#334155;margin-right:6px}
+.kgb-year-chip select{border:1px solid #e5e7eb;border-radius:10px;padding:6px 8px}
+.kgb-install-btn{padding:8px 12px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;cursor:pointer}
+.kgb-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 12px;border-radius:10px;z-index:99999;opacity:.98}
