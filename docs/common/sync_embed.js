@@ -1,7 +1,10 @@
 (function(){
+  // ---- Keys & helpers ----
   const CUR_USER='kgb_auth_current_v1';
   const KEYS={budget:'kgb_finance_budget_only_v1', full:'kgb_finance_full_v1'};
-  const TOK='kgb_sync_gist_token', GID='kgb_sync_gist_id'; // geavanceerd
+  const LS_GDRIVE_CID='kgb_gdrive_client_id';
+  const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+  const DRIVE_FOLDER='KGB Finance 2025';
   const $=s=>document.querySelector(s);
 
   function user(){ return (localStorage.getItem(CUR_USER)||'').trim() || 'Kurt'; }
@@ -10,98 +13,169 @@
   function stablePayload(){ try{ return JSON.stringify(JSON.parse(localStorage.getItem(keyForKind())||'{}')); }catch{ return '{}' } }
   async function sha256Hex(s){ const d=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
   function applyYear(y){ ['kgb_year','kgb_view_year','kgb_selected_year','kgb_active_year','kgb_finance_year','kgb_year_filter'].forEach(k=>localStorage.setItem(k,String(y))); }
-  function autoYearFromCurrentData(){ // zet jaar naar laatste (>=2020)
+  function autoYearFromCurrentData(){
     const raw=localStorage.getItem(keyForKind())||'';
     const yrs=Array.from(String(raw).matchAll(/\b(19|20)\d{2}\b/g)).map(m=>+m[0]).filter(y=>y>=2000&&y<=2100);
     if(!yrs.length) return; const now=(new Date()).getFullYear(); applyYear(Math.min(Math.max(...yrs),now));
   }
-  function toast(msg){ let r=$('#kgb_reload_bar'); if(!r){ r=document.createElement('div'); r.id='kgb_reload_bar'; r.style.cssText='position:fixed;left:0;right:0;top:0;z-index:9995;padding:10px 14px;text-align:center;background:#e0f2fe;border-bottom:1px solid #38bdf8;color:#075985'; document.body.appendChild(r); } r.textContent=msg; r.style.display='block'; }
+  function toast(msg){ let r=$('#kgb_reload_bar'); if(!r){ r=document.createElement('div'); r.id='kgb_reload_bar'; r.style.cssText='position:fixed;left:0;right:0;top:0;z-index:9995;padding:10px 14px;text-align:center;background:#e0f2fe;border-bottom:1px solid #38bdf8;color:#075985'; document.body.appendChild(r);} r.textContent=msg; r.style.display='block'; }
 
-  // --- Export/Import (mobiel-proof) ---
+  // ---- JSON normalisatie (tolerant import) ----
+  function isValidJSON(t){ try{ JSON.parse(t); return true; }catch{ return false; } }
+  function normalizeJsonText(txt){
+    let s = (typeof txt==='string'?txt:String(txt||''));
+    s = s.replace(/^\uFEFF/, '').trim();                        // BOM + trim
+    if(s.startsWith('"') && s.endsWith('"')){ try{ s=JSON.parse(s); }catch(_){ } }
+    if(!isValidJSON(s)){ const i=s.indexOf('{'), j=s.lastIndexOf('}'); if(i>=0&&j>i) s=s.slice(i,j+1); }
+    return s;
+  }
+
+  // ---- Export / Import ----
   async function exportSmart(){
-    const name=`${appKind()}-${user()}.json`, data=stablePayload(), blob=new Blob([data],{type:'application/json'});
-    try{ const file=new File([blob],name,{type:'application/json'});
+    const name=`KGB-${appKind()}-${user()}.json`, data=stablePayload(), blob=new Blob([data],{type:'application/json'});
+    try{
+      const file=new File([blob],name,{type:'application/json'});
       if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); toast('Gedeeld'); return; }
       if(navigator.share){ await navigator.share({title:name, text:data}); toast('Gedeeld als tekst'); return; }
     }catch(_){}
-    try{ if(navigator.clipboard && isSecureContext){ await navigator.clipboard.writeText(data); toast('JSON naar klembord'); return; } }catch(_){}
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3e4); toast('Bestand geopend/gedownload');
+    try{ if(navigator.clipboard && isSecureContext){ await navigator.clipboard.writeText(data); toast('Naar klembord'); return; } }catch(_){}
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3e4); toast('Bestand gedownload');
   }
-  async function importFromClipboard(){
-    if(!(navigator.clipboard && isSecureContext)) throw new Error('Klembord niet beschikbaar');
-    const txt=await navigator.clipboard.readText(); JSON.parse(txt||'{}');
-    localStorage.setItem(keyForKind(), txt);
-    const hash=await sha256Hex(stablePayload()); localStorage.setItem(`kgb_sync_local_meta_${appKind()}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:'import-clipboard'}));
-    autoYearFromCurrentData(); toast('Import (klembord) OK — herlaad indien nodig');
+  async function importCore(txt, via){
+    const norm=normalizeJsonText(txt);
+    try{ JSON.parse(norm||'{}'); }catch{ alert('Ongeldig JSON. Kies het exportbestand: KGB-full-… of KGB-budget-….json'); throw new Error('invalid-json'); }
+    localStorage.setItem(keyForKind(), norm);
+    const hash=await sha256Hex(stablePayload());
+    localStorage.setItem(`kgb_sync_local_meta_${appKind()}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:`import-${via}`}));
+    autoYearFromCurrentData(); toast('Import OK — herlaad indien nodig');
   }
-  async function importFromFile(file){
-    const txt=await file.text(); JSON.parse(txt||'{}');
-    localStorage.setItem(keyForKind(), txt);
-    const hash=await sha256Hex(stablePayload()); localStorage.setItem(`kgb_sync_local_meta_${appKind()}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:'import-file'}));
-    autoYearFromCurrentData(); toast('Import (bestand) OK — herlaad indien nodig');
+  async function importFromClipboard(){ if(!(navigator.clipboard&&isSecureContext)) throw new Error('Klembord niet beschikbaar'); const txt=await navigator.clipboard.readText(); await importCore(txt,'clipboard'); }
+  async function importFromFile(file){ const txt=await file.text(); await importCore(txt,'file'); }
+
+  // ---- Google Drive (GIS + Drive v3) ----
+  let accessToken=null;
+  function gClientId(){ return (localStorage.getItem(LS_GDRIVE_CID)||'').trim(); }
+  function ensureGIS(){
+    return new Promise((res,rej)=>{
+      if(window.google && google.accounts && google.accounts.oauth2){ res(); return; }
+      const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true;
+      s.onload=()=>res(); s.onerror=()=>rej(new Error('Google Identity laden mislukt')); document.head.appendChild(s);
+    });
+  }
+  async function driveToken(prompt=true){
+    await ensureGIS(); const cid=gClientId(); if(!cid) throw new Error('Google Client ID ontbreekt');
+    return new Promise((resolve,reject)=>{
+      const tc=google.accounts.oauth2.initTokenClient({
+        client_id: cid, scope: DRIVE_SCOPE, prompt: prompt?'consent':'',
+        callback: (resp)=>{ if(resp?.access_token){ accessToken=resp.access_token; resolve(accessToken); } else reject(new Error('Geen access token')); }
+      });
+      tc.requestAccessToken();
+    });
+  }
+  async function driveFetch(path,opt={}){
+    if(!accessToken) await driveToken(false);
+    const r=await fetch('https://www.googleapis.com/drive/v3'+path,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+accessToken}});
+    if(!r.ok) throw new Error('Drive '+r.status);
+    return await r.json();
+  }
+  async function driveFindFolderId(){
+    const q=encodeURIComponent(`name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const j=await driveFetch('/files?q='+q+'&fields=files(id,name)'); return j.files?.[0]?.id||null;
+  }
+  async function driveEnsureFolder(){
+    const id=await driveFindFolderId(); if(id) return id;
+    const r=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({name:DRIVE_FOLDER,mimeType:'application/vnd.google-apps.folder'})});
+    if(!r.ok) throw new Error('Folder maken mislukt'); return (await r.json()).id;
+  }
+  async function driveFindFileId(name){
+    const q=encodeURIComponent(`name='${name}' and trashed=false`);
+    const j=await driveFetch('/files?q='+q+'&fields=files(id,name,modifiedTime,size,parents)'); return j.files?.[0]?.id||null;
+  }
+  async function driveDownload(name){
+    const id=await driveFindFileId(name); if(!id) return null;
+    const r=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{headers:{Authorization:'Bearer '+accessToken}});
+    if(!r.ok) throw new Error('Download '+r.status); return await r.text();
+  }
+  async function driveUpload(name, content){
+    const folderId=await driveEnsureFolder();
+    const existId=await driveFindFileId(name);
+    const boundary='-------314159265358979323846', delim='\r\n--'+boundary+'\r\n', close='\r\n--'+boundary+'--';
+    const meta=JSON.stringify({name, parents:[folderId]});
+    const body=delim+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+meta+delim+'Content-Type: application/json\r\n\r\n'+content+close;
+    const url=existId?('https://www.googleapis.com/upload/drive/v3/files/'+existId+'?uploadType=multipart'):'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const method=existId?'PATCH':'POST';
+    const r=await fetch(url,{method,headers:{Authorization:'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary},body});
+    if(!r.ok) throw new Error('Upload '+r.status);
+    return existId || (await r.json()).id;
+  }
+  async function drivePull(){
+    const name=`KGB-${appKind()}-${user()}.json`;
+    const txt=await driveDownload(name); if(!txt) throw new Error('Geen bestand op Drive: '+name+'\nEerst op Mac: Drive Push');
+    await importCore(txt,'drive-pull');
+    toast('Drive Pull OK');
+  }
+  async function drivePush(){
+    const name=`KGB-${appKind()}-${user()}.json`, payload=stablePayload();
+    await driveUpload(name, payload);
+    const hash=await sha256Hex(payload);
+    localStorage.setItem(`kgb_sync_local_meta_${appKind()}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:'drive-push'}));
+    toast('Drive Push OK — '+name);
+  }
+  async function driveOpen(){
+    await driveToken(false).catch(()=>{});
+    let url='https://drive.google.com/drive/my-drive';
+    try{
+      const fid=await driveFindFolderId(); if(fid) url='https://drive.google.com/drive/folders/'+fid;
+      const id=await driveFindFileId(`KGB-${appKind()}-${user()}.json`); if(id) url='https://drive.google.com/file/d/'+id+'/view';
+    }catch(_){}
+    window.open(url,'_blank');
   }
 
-  // --- (Geavanceerd) Gist Pull/Push – verborgen achter details ---
-  async function api(method, body){
-    const tok=localStorage.getItem(TOK), gid=localStorage.getItem(GID);
-    if(!tok||!gid) throw new Error('Token/Gist ID ontbreekt');
-    const r=await fetch(`https://api.github.com/gists/${gid}`,{method,headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
-    if(!r.ok) throw new Error(`GitHub API ${r.status}`); return await r.json();
-  }
-  async function pullGist(){
-    const u=user(), k=appKind(), f={`${k}-${u}.json`}; const j=await api('GET'); const c=j.files?.[f]?.content||null; if(!c) throw new Error(`Geen ${f} in Gist`);
-    localStorage.setItem(keyForKind(), c); const hash=await sha256Hex(stablePayload());
-    localStorage.setItem(`kgb_sync_local_meta_${k}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:'pull'}));
-    autoYearFromCurrentData(); toast('Pull OK — herlaad indien nodig');
-  }
-  async function pushGist(){
-    const u=user(), k=appKind(), f={`${k}-${u}.json`}, m=`${k}-${u}.meta.json`; const data=stablePayload(); const hash=await sha256Hex(data);
-    await api('PATCH',{files:{[f]:{content:data},[m]:{content:JSON.stringify({hash,updated_at:new Date().toISOString(),by:u})}}}); toast('Push OK');
-  }
-
-  // --- UI: grote Export/Import + geavanceerd-blok ---
+  // ---- UI ----
   function ensureButtons(){
-    if($('#kgb_export_btn')) return;
-    const barStyle='position:fixed;top:10px;right:10px;z-index:9996';
-    const mk=(id,txt,dx)=>{const b=document.createElement('button'); b.id=id;b.textContent=txt;b.style.cssText=`${barStyle};right:${dx}px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer`; document.body.appendChild(b); return b;};
-    const exp=mk('kgb_export_btn','💾 Export',190), imp=mk('kgb_import_btn','📥 Import',100), sync=mk('kgb_sync_btn','⚙️ Meer',10);
-    exp.onclick=()=>exportSmart();
-    imp.onclick=()=>{ const f=document.createElement('input'); f.type='file'; f.accept='application/json,.json'; f.onchange=e=>{const file=e.target.files?.[0]; if(file) importFromFile(file).catch(err=>toast('Fout: '+err.message));}; f.click(); };
-    sync.onclick=openPanel;
+    if($('#kgb_sync_btn')) return;
+    const mk=(id,txt,right)=>{const b=document.createElement('button'); b.id=id;b.textContent=txt;b.style.cssText=`position:fixed;top:10px;right:${right}px;z-index:9996;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer`; document.body.appendChild(b); return b;};
+    mk('kgb_export_btn','💾 Export',190).onclick=()=>exportSmart().catch(e=>toast('Fout: '+e.message));
+    mk('kgb_import_btn','📥 Import',100).onclick=()=>{ const f=document.createElement('input'); f.type='file'; f.accept='application/json,.json'; f.onchange=e=>{const file=e.target.files?.[0]; if(file) importFromFile(file).catch(err=>toast('Fout: '+err.message));}; f.click(); };
+    mk('kgb_sync_btn','☁️ Drive',10).onclick=openPanel;
   }
 
   function openPanel(){
     const back=document.createElement('div'); back.style.cssText='position:fixed;inset:0;background:rgba(2,6,23,.35);backdrop-filter:blur(2px);z-index:9996';
     const box=document.createElement('div'); box.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9997';
     const card=document.createElement('div'); card.style.cssText='width:min(94vw,560px);background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 12px 40px rgba(2,6,23,.18);padding:16px';
-    card.innerHTML=`<h3 style="margin:0 0 8px">📦 Export / Import — <b>${user()}</b> (${appKind()})</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
-        <button id="ex_btn">💾 Export (Delen/Bestanden)</button>
+    const cid=localStorage.getItem(LS_GDRIVE_CID)||'';
+    card.innerHTML=`<h3 style="margin:0 0 8px">☁️ Google Drive — <b>${user()}</b> (${appKind()})</h3>
+      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0">
+        <label style="flex:1 1 220px;display:flex;flex-direction:column;gap:6px">Google Client ID<input id="gd_cid" type="text" value="${cid}" placeholder="xxx.apps.googleusercontent.com"></label>
+      </div>
+      <div class="buttons" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="gd_save">Opslaan ID</button>
+        <button id="gd_login">Inloggen</button>
+        <button id="gd_push">⬆️ Drive Push</button>
+        <button id="gd_pull">⬇️ Drive Pull</button>
+        <button id="gd_open">Open in Drive</button>
+      </div>
+      <hr/>
+      <div class="buttons" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="ex_btn">💾 Export</button>
         <button id="im_btn">📥 Import (bestand)</button>
         <button id="clip_btn">📋 Import (klembord)</button>
         <input id="im_file" type="file" accept="application/json,.json" style="display:none">
       </div>
-      <details style="margin-top:6px"><summary>Geavanceerd: GitHub Gist (optioneel)</summary>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0">
-          <label style="flex:1 1 220px;display:flex;flex-direction:column;gap:6px">Gist Token<input id="se_tok" type="password" value="${localStorage.getItem(TOK)||''}" placeholder="ghp_..."></label>
-          <label style="flex:1 1 220px;display:flex;flex-direction:column;gap:6px">Gist ID<input id="se_gid" type="text" value="${localStorage.getItem(GID)||''}" placeholder="xxxxxxxxxxxxxxxx"></label>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">
-          <button id="save_gist">Opslaan</button>
-          <button id="pull_gist">⬇️ Pull</button>
-          <button id="push_gist">⬆️ Push</button>
-        </div>
-      </details>
-      <div style="margin-top:8px;color:#334155">Tip: op gsm kies je bij Export **Bestanden** of **Drive**. Daarna op gsm: Import → kies dat bestand.</div>`;
+      <div style="margin-top:8px;color:#334155">Bestand: <code>KGB-${appKind()}-${user()}.json</code> in map <b>${DRIVE_FOLDER}</b></div>`;
     box.appendChild(card); document.body.append(back,box);
     back.onclick=()=>{box.remove();back.remove()};
-    card.querySelector('#ex_btn').onclick=()=>exportSmart().catch(e=>toast('Fout: '+e.message));
-    card.querySelector('#im_btn').onclick=()=>card.querySelector('#im_file').click();
-    card.querySelector('#im_file').onchange=e=>{const f=e.target.files?.[0]; if(f) importFromFile(f).catch(err=>toast('Fout: '+err.message));};
-    card.querySelector('#clip_btn').onclick=()=>importFromClipboard().catch(e=>toast('Fout: '+e.message));
-    card.querySelector('#save_gist').onclick=()=>{localStorage.setItem(TOK,card.querySelector('#se_tok').value.trim()); localStorage.setItem(GID,card.querySelector('#se_gid').value.trim()); toast('Gist opgeslagen');};
-    card.querySelector('#pull_gist').onclick=()=>pullGist().catch(e=>toast('Fout: '+e.message));
-    card.querySelector('#push_gist').onclick=()=>pushGist().catch(e=>toast('Fout: '+e.message));
+    const q=s=>card.querySelector(s);
+    q('#gd_save').onclick=()=>{ localStorage.setItem(LS_GDRIVE_CID, q('#gd_cid').value.trim()); toast('Client ID opgeslagen'); };
+    q('#gd_login').onclick=()=>driveToken(true).then(()=>toast('Ingelogd')).catch(e=>toast('Fout: '+e.message));
+    q('#gd_push').onclick=()=>driveToken(false).catch(()=>{}).then(()=>drivePush()).catch(e=>toast('Fout: '+e.message));
+    q('#gd_pull').onclick=()=>driveToken(false).catch(()=>{}).then(()=>drivePull()).catch(e=>toast('Fout: '+e.message));
+    q('#gd_open').onclick=()=>driveOpen();
+    q('#ex_btn').onclick=()=>exportSmart().catch(e=>toast('Fout: '+e.message));
+    q('#im_btn').onclick=()=>q('#im_file').click();
+    q('#im_file').onchange=e=>{const f=e.target.files?.[0]; if(f) importFromFile(f).catch(err=>toast('Fout: '+err.message));};
+    q('#clip_btn').onclick=()=>importFromClipboard().catch(e=>toast('Fout: '+e.message));
   }
 
   (window.KGB_READY?window.KGB_READY:Promise.resolve()).finally(()=>{ ensureButtons(); try{ autoYearFromCurrentData(); }catch{} });
