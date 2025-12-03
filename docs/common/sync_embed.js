@@ -22,12 +22,14 @@
   function stablePayload(){ try{ return JSON.stringify(JSON.parse(localStorage.getItem(keyForKind())||'{}')); }catch{ return '{}' } }
   function isValidJSON(t){ try{ JSON.parse(t); return true; }catch{ return false; } }
   async function sha256Hex(s){ const d=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
   function applyYear(y){ ['kgb_year','kgb_view_year','kgb_selected_year','kgb_active_year','kgb_finance_year','kgb_year_filter'].forEach(k=>localStorage.setItem(k,String(y))); }
   function autoYearFromCurrentData(){
     const raw=localStorage.getItem(keyForKind())||'';
     const yrs=Array.from(String(raw).matchAll(/\b(19|20)\d{2}\b/g)).map(m=>+m[0]).filter(y=>y>=2000&&y<=2100);
     if(!yrs.length) return; const now=(new Date()).getFullYear(); applyYear(Math.min(Math.max(...yrs),now));
   }
+
   function ensureReloadBar(){
     if($('#kgb_reload_bar')) return $('#kgb_reload_bar');
     const r=document.createElement('div'); r.id='kgb_reload_bar';
@@ -63,16 +65,11 @@
     const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3e4); toast('Bestand gedownload');
   }
 
-  // ---- Google Drive auth ----
+  // ---- Google Drive auth & API ----
   let accessToken=null;
   function gClientId(){ return (localStorage.getItem(LS_GDRIVE_CID)||'').trim(); }
-  function ensureGIS(){
-    return new Promise((res,rej)=>{
-      if(window.google && google.accounts && google.accounts.oauth2){ res(); return; }
-      const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true;
-      s.onload=()=>res(); s.onerror=()=>rej(new Error('Google Identity laden mislukt')); document.head.appendChild(s);
-    });
-  }
+  function clearAuth(){ try{ if(window.google?.accounts?.oauth2?.revoke && accessToken){ google.accounts.oauth2.revoke(accessToken, ()=>{}); } }catch(_){ } accessToken=null; }
+  function ensureGIS(){ return new Promise((res,rej)=>{ if(window.google?.accounts?.oauth2){ res(); return; } const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true; s.onload=()=>res(); s.onerror=()=>rej(new Error('Google Identity laden mislukt')); document.head.appendChild(s); }); }
   async function requestToken(promptUser){
     await ensureGIS();
     const cid=gClientId(); if(!cid) throw new Error('Google Client ID ontbreekt');
@@ -85,15 +82,10 @@
     });
   }
   async function ensureAuthed(){ if(accessToken) return accessToken; try{ return await requestToken(false);}catch{ return await requestToken(true);} }
-  function clearAuth(){ try{ if(window.google?.accounts?.oauth2?.revoke && accessToken){ google.accounts.oauth2.revoke(accessToken, ()=>{}); } }catch(_){ } accessToken=null; }
-
   async function driveFetch(path,opt={}){
     await ensureAuthed();
     const r=await fetch('https://www.googleapis.com/drive/v3'+path,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+accessToken}});
-    if(!r.ok){
-      let det=''; try{ const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ det=''; }
-      throw new Error(`Drive ${r.status}${det?(' — '+det):''}`);
-    }
+    if(!r.ok){ let det=''; try{ const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ } throw new Error(`Drive ${r.status}${det?(' — '+det):''}`); }
     return await r.json();
   }
   async function driveFindFolderId(){ const q=encodeURIComponent(`name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`); const j=await driveFetch('/files?q='+q+'&fields=files(id,name)'); return j.files?.[0]?.id||null; }
@@ -105,40 +97,29 @@
   }
   async function driveFindFileId(name){ const q=encodeURIComponent(`name='${name}' and trashed=false`); const j=await driveFetch('/files?q='+q+'&fields=files(id,name,modifiedTime,size,parents)'); return j.files?.[0]?.id||null; }
   async function driveListFiles(){ const fid=await driveFindFolderId(); if(!fid) return []; const q=encodeURIComponent(`'${fid}' in parents and trashed=false`); const j=await driveFetch('/files?q='+q+'&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc'); return j.files||[]; }
-
   async function driveDownload(name){
     const id=await driveFindFileId(name); if(!id) return null;
     const r=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{headers:{Authorization:'Bearer '+accessToken}});
     if(!r.ok){ let det=''; try{const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ } throw new Error('Download '+r.status+(det?(' — '+det):'')); }
     return await r.text();
   }
-
   async function driveUpload(name, content){
     const boundary='-------314159265358979323846';
     const delim='\r\n--'+boundary+'\r\n', close='\r\n--'+boundary+'--';
     const folderId=await driveEnsureFolder();
     const existId=await driveFindFileId(name);
-
     const metaCreate=JSON.stringify({name, parents:[folderId]});
     const metaUpdate=JSON.stringify({name});
-
     const bodyCreate=delim+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+metaCreate+delim+'Content-Type: application/json\r\n\r\n'+content+close;
     const bodyUpdate=delim+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+metaUpdate+delim+'Content-Type: application/json\r\n\r\n'+content+close;
-
     async function doReq(method,url,body){
       const r=await fetch(url,{method,headers:{Authorization:'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary},body});
-      if(!r.ok){
-        let det=''; try{const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ }
+      if(!r.ok){ let det=''; try{const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ }
         if(r.status===401||r.status===403){ clearAuth(); await ensureAuthed(); }
-        throw new Error(`Upload ${r.status}${det?(' — '+det):''}`);
-      }
+        throw new Error(`Upload ${r.status}${det?(' — '+det):''}`); }
       return await r.json().catch(()=>({}));
     }
-
-    if(existId){
-      try{ await doReq('PATCH','https://www.googleapis.com/upload/drive/v3/files/'+existId+'?uploadType=multipart', bodyUpdate); return existId; }
-      catch(_){ /* fallback create */ }
-    }
+    if(existId){ try{ await doReq('PATCH','https://www.googleapis.com/upload/drive/v3/files/'+existId+'?uploadType=multipart', bodyUpdate); return existId; } catch(_){ /* fallback create */ } }
     const j=await doReq('POST','https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', bodyCreate);
     return j.id||existId||null;
   }
@@ -146,12 +127,27 @@
   async function drivePull(){ const name=`KGB-${appKind()}-${user()}.json`; const txt=await driveDownload(name); if(!txt) throw new Error('Geen bestand op Drive: '+name+'\nEerst op Mac: Drive Push'); await importCore(txt,'drive-pull'); toast('Drive Pull OK'); }
   async function drivePush(){ const name=`KGB-${appKind()}-${user()}.json`, payload=stablePayload(); const id=await driveUpload(name, payload); if(!id) throw new Error('Upload mislukte'); const hash=await sha256Hex(payload); localStorage.setItem(`kgb_sync_local_meta_${appKind()}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:'drive-push'})); toast('Drive Push OK — '+name); }
 
-  function ensureButtons(){
-    if($('#kgb_sync_btn')) return;
-    const mk=(id,txt,right)=>{const b=document.createElement('button'); b.id=id;b.textContent=txt;b.style.cssText=`position:fixed;top:10px;right:${right}px;z-index:9996;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer`; document.body.appendChild(b); return b;};
-    mk('kgb_export_btn','💾 Export',330).onclick=()=>exportSmart().catch(e=>toast('Fout: '+e.message));
-    mk('kgb_import_btn','📥 Import',240).onclick=()=>{ const f=document.createElement('input'); f.type='file'; f.accept='application/json,.json'; f.onchange=e=>{const file=e.target.files?.[0]; if(file) importFromFile(file).catch(err=>toast('Fout: '+err.message));}; f.click(); };
-    mk('kgb_sync_btn','☁️ Drive',90).onclick=openPanel;
+  // ---- UI: inline Drive-knop bij "Export / Import" ----
+  function findExportImportButton(){
+    const norm=s=>s.replace(/\s+/g,' ').trim().toLowerCase();
+    const all=[...document.querySelectorAll('button,a')];
+    return all.find(el=>{ const t=norm(el.textContent||''); return t.includes('export') && t.includes('import'); }) || null;
+  }
+  function ensureInlineDriveButton(){
+    if(document.getElementById('kgb_drive_inline')) return;
+    const ref=findExportImportButton(); if(!ref) return;
+    const isLink = ref.tagName.toLowerCase()==='a';
+    const b=document.createElement(isLink?'a':'button');
+    b.id='kgb_drive_inline'; b.textContent='☁️ Drive';
+    b.onclick=(e)=>{ e.preventDefault(); openPanel(); };
+    b.className=ref.className;            // kopieer styling van je bestaande knop
+    if(isLink) b.href='#';
+    if(!b.className){ // minimale fallback-stijl
+      b.style.cssText='margin-left:8px;padding:10px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;cursor:pointer';
+    } else {
+      b.style.marginLeft='8px';
+    }
+    ref.insertAdjacentElement('afterend', b);
   }
 
   function openPanel(){
@@ -208,7 +204,7 @@
     q('#kgb_kind_full').onclick=()=>{ setAppKind('full'); updKind(); };
     q('#gd_save').onclick=()=>{ localStorage.setItem(LS_GDRIVE_CID, q('#gd_cid').value.trim()); toast('Client ID opgeslagen'); };
 
-    q('#gd_login').onclick=async ()=>{ try{ toast('Inloggen…'); await requestToken(true); setStatus('ingelogd'); log('OK: token verkregen'); }catch(e){ setStatus('fout'); log(e.message); toast('Fout: '+e.message); } };
+    q('#gd_login').onclick=async ()=>{ try{ toast('Inloggen…'); await requestToken(true); setStatus('ingelogd'); log('OK: token'); }catch(e){ setStatus('fout'); log(e.message); toast('Fout: '+e.message); } };
     q('#gd_logout').onclick=()=>{ clearAuth(); setStatus('uitgelogd'); log('Uitgelogd'); toast('Uitgelogd'); };
 
     q('#gd_push').onclick=async ()=>{ try{ setStatus('bezig'); log('Drive Push…'); await ensureAuthed(); await drivePush(); setStatus('ingelogd'); log('Push OK'); }catch(e){ setStatus('fout'); log('Push fout: '+e.message); toast('Fout: '+e.message); } };
@@ -239,8 +235,14 @@
     q('#clip_btn').onclick=()=>navigator.clipboard?.readText().then(t=>importCore(t,'clipboard')).catch(e=>toast('Fout: '+e.message));
   }
 
-  (window.KGB_READY?window.KGB_READY:Promise.resolve()).finally(()=>{ 
-    ensureButtons();
+  // Start
+  (window.KGB_READY?window.KGB_READY:Promise.resolve()).finally(()=>{
     try{ autoYearFromCurrentData(); }catch{}
+    // probeer elke seconde tot we de "Export / Import"-knop gevonden hebben
+    ensureInlineDriveButton();
+    const t=setInterval(()=>{
+      if(document.getElementById('kgb_drive_inline')){ clearInterval(t); return; }
+      ensureInlineDriveButton();
+    }, 1000);
   });
 })();
