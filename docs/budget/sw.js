@@ -1,4 +1,4 @@
-const CACHE = 'kgb-budget-v11';
+const CACHE = 'kgb-budget-v12';
 self.addEventListener('install', e => e.waitUntil(
   caches.open(CACHE).then(c => c.addAll(['./','./index.html','./manifest.webmanifest']))
 ));
