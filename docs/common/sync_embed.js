@@ -27,9 +27,13 @@
     const yrs=Array.from(String(raw).matchAll(/\b(19|20)\d{2}\b/g)).map(m=>+m[0]).filter(y=>y>=2000&&y<=2100);
     if(!yrs.length) return; const now=(new Date()).getFullYear(); applyYear(Math.min(Math.max(...yrs),now));
   }
-  function toast(msg){ let r=$('#kgb_reload_bar'); if(!r){ r=document.createElement('div'); r.id='kgb_reload_bar'; r.style.cssText='position:fixed;left:0;right:0;top:0;z-index:9995;padding:10px 14px;text-align:center;background:#e0f2fe;border-bottom:1px solid #38bdf8;color:#075985'; document.body.appendChild(r);} r.textContent=msg; r.style.display='block'; }
+  function toast(msg){
+    let r=$('#kgb_reload_bar');
+    if(!r){ r=document.createElement('div'); r.id='kgb_reload_bar'; r.style.cssText='position:fixed;left:0;right:0;top:0;z-index:9995;padding:10px 14px;text-align:center;background:#e0f2fe;border-bottom:1px solid #38bdf8;color:#075985'; document.body.appendChild(r); }
+    r.textContent=msg; r.style.display='block';
+  }
 
-  // JSON tolerant
+  // JSON tolerant import
   function isValidJSON(t){ try{ JSON.parse(t); return true; }catch{ return false; } }
   function normalizeJsonText(txt){
     let s=(typeof txt==='string'?txt:String(txt||'')); s=s.replace(/^\uFEFF/, '').trim();
@@ -37,7 +41,6 @@
     if(!isValidJSON(s)){ const i=s.indexOf('{'), j=s.lastIndexOf('}'); if(i>=0&&j>i) s=s.slice(i,j+1); }
     return s;
   }
-
   async function importCore(txt, via){
     const norm=normalizeJsonText(txt);
     try{ JSON.parse(norm||'{}'); }catch{ alert('Ongeldig JSON. Kies KGB-full-… of KGB-budget-….json'); throw new Error('invalid-json'); }
@@ -57,7 +60,7 @@
     const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3e4); toast('Bestand gedownload');
   }
 
-  // Google Drive
+  // Google Drive auth
   let accessToken=null;
   function gClientId(){ return (localStorage.getItem(LS_GDRIVE_CID)||'').trim(); }
   function ensureGIS(){
@@ -78,35 +81,47 @@
       tc.requestAccessToken();
     });
   }
-  async function ensureAuthed(){
-    if(accessToken) return accessToken;
-    try { return await requestToken(false); }
-    catch { return await requestToken(true); } // eerste keer: toon prompt
+  async function ensureAuthed(){ if(accessToken) return accessToken; try{ return await requestToken(false);}catch{ return await requestToken(true);} }
+  function clearAuth(){ try{ if(window.google?.accounts?.oauth2?.revoke && accessToken){ google.accounts.oauth2.revoke(accessToken, ()=>{}); } }catch(_){ } accessToken=null; }
+
+  async function driveFetch(path,opt={}){
+    await ensureAuthed();
+    const r=await fetch('https://www.googleapis.com/drive/v3'+path,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+accessToken}});
+    if(!r.ok){ let det=''; try{ const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ } throw new Error('Drive '+r.status+(det?(' — '+det):'')); }
+    return await r.json();
   }
-  function clearAuth(){
-    try{ if(window.google?.accounts?.oauth2?.revoke && accessToken){ google.accounts.oauth2.revoke(accessToken, ()=>{}); } }catch(_){}
-    accessToken=null;
-  }
-  async function driveFetch(path,opt={}){ await ensureAuthed(); const r=await fetch('https://www.googleapis.com/drive/v3'+path,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+accessToken}}); if(!r.ok) throw new Error('Drive '+r.status); return await r.json(); }
   async function driveFindFolderId(){ const q=encodeURIComponent(`name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`); const j=await driveFetch('/files?q='+q+'&fields=files(id,name)'); return j.files?.[0]?.id||null; }
-  async function driveEnsureFolder(){ const id=await driveFindFolderId(); if(id) return id; const r=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({name:DRIVE_FOLDER,mimeType:'application/vnd.google-apps.folder'})}); if(!r.ok) throw new Error('Folder maken mislukt'); return (await r.json()).id; }
+  async function driveEnsureFolder(){
+    const id=await driveFindFolderId(); if(id) return id;
+    const r=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({name:DRIVE_FOLDER,mimeType:'application/vnd.google-apps.folder'})});
+    if(!r.ok){ let det=''; try{const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ } throw new Error('Folder maken '+r.status+(det?(' — '+det):'')); }
+    return (await r.json()).id;
+  }
   async function driveFindFileId(name){ const q=encodeURIComponent(`name='${name}' and trashed=false`); const j=await driveFetch('/files?q='+q+'&fields=files(id,name,modifiedTime,size,parents)'); return j.files?.[0]?.id||null; }
-  async function driveDownload(name){ const id=await driveFindFileId(name); if(!id) return null; const r=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{headers:{Authorization:'Bearer '+accessToken}}); if(!r.ok) throw new Error('Download '+r.status); return await r.text(); }
+  async function driveDownload(name){
+    const id=await driveFindFileId(name); if(!id) return null;
+    const r=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{headers:{Authorization:'Bearer '+accessToken}});
+    if(!r.ok){ let det=''; try{const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ } throw new Error('Download '+r.status+(det?(' — '+det):'')); }
+    return await r.text();
+  }
   async function driveUpload(name, content){
-    const folderId=await driveEnsureFolder(); const existId=await driveFindFileId(name);
+    const folderId=await driveEnsureFolder();
+    const existId=await driveFindFileId(name);
     const boundary='-------314159265358979323846', delim='\r\n--'+boundary+'\r\n', close='\r\n--'+boundary+'--';
-    const meta=JSON.stringify({name, parents:[folderId]});
-    const body=delim+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+meta+delim+'Content-Type: application/json\r\n\r\n'+content+close;
+    const metaNew=JSON.stringify({name, parents:[folderId]});
+    const metaUpd=JSON.stringify({name}); // PATCH: geen parents meesturen
+    const bodyNew=delim+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+metaNew+delim+'Content-Type: application/json\r\n\r\n'+content+close;
+    const bodyUpd=delim+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+metaUpd+delim+'Content-Type: application/json\r\n\r\n'+content+close;
     const url=existId?('https://www.googleapis.com/upload/drive/v3/files/'+existId+'?uploadType=multipart'):'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
     const method=existId?'PATCH':'POST';
-    const r=await fetch(url,{method,headers:{Authorization:'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary},body});
-    if(!r.ok) throw new Error('Upload '+r.status);
+    const r=await fetch(url,{method,headers:{Authorization:'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary},body: existId?bodyUpd:bodyNew});
+    if(!r.ok){ let det=''; try{const ej=await r.json(); det=ej.error?.message||JSON.stringify(ej);}catch(_){ } throw new Error('Upload '+r.status+(det?(' — '+det):'')); }
     return existId || (await r.json()).id;
   }
   async function drivePull(){ const name=`KGB-${appKind()}-${user()}.json`; const txt=await driveDownload(name); if(!txt) throw new Error('Geen bestand op Drive: '+name+'\nEerst op Mac: Drive Push'); await importCore(txt,'drive-pull'); toast('Drive Pull OK'); }
   async function drivePush(){ const name=`KGB-${appKind()}-${user()}.json`, payload=stablePayload(); await driveUpload(name, payload); const hash=await sha256Hex(payload); localStorage.setItem(`kgb_sync_local_meta_${appKind()}`, JSON.stringify({hash,updated_at:new Date().toISOString(),by:'drive-push'})); toast('Drive Push OK — '+name); }
   async function driveOpen(){
-    try { await ensureAuthed(); } catch(_){}
+    try{ await ensureAuthed(); }catch(_){}
     let url='https://drive.google.com/drive/my-drive';
     try{ const fid=await driveFindFolderId(); if(fid) url='https://drive.google.com/drive/folders/'+fid; const id=await driveFindFileId(`KGB-${appKind()}-${user()}.json`); if(id) url='https://drive.google.com/file/d/'+id+'/view'; }catch(_){}
     window.open(url,'_blank');
@@ -124,9 +139,10 @@
     const kind=appKind(), u=user();
     const back=document.createElement('div'); back.style.cssText='position:fixed;inset:0;background:rgba(2,6,23,.35);backdrop-filter:blur(2px);z-index:9996';
     const box=document.createElement('div'); box.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9997';
-    const card=document.createElement('div'); card.style.cssText='width:min(94vw,640px);background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 12px 40px rgba(2,6,23,.18);padding:16px';
+    const card=document.createElement('div'); card.style.cssText='width:min(94vw,640px);background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 12px 40px rgba(2,6,23,.18);padding:16px;position:relative';
     const cid=localStorage.getItem(LS_GDRIVE_CID)||'';
-    card.innerHTML=`<h3 style="margin:0 0 8px">☁️ Google Drive — <b>${u}</b> (<span id="kgb_kind">${kind}</span>)</h3>
+    card.innerHTML=`<button id="kgb_close" title="Sluiten" style="position:absolute;right:10px;top:10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:2px 8px;cursor:pointer">✕</button>
+      <h3 style="margin:0 0 8px">☁️ Google Drive — <b>${u}</b> (<span id="kgb_kind">${kind}</span>)</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">
         <span>Dataset:</span>
         <button id="kgb_kind_budget">Budget</button>
@@ -157,11 +173,16 @@
       </div>
       <div style="margin-top:8px;color:#334155">Bestand: <code>KGB-${kind}-${u}.json</code> in map <b>${DRIVE_FOLDER}</b></div>`;
     box.appendChild(card); document.body.append(back,box);
-    back.onclick=()=>{box.remove();back.remove()};
+
+    const closeAll=()=>{ box.remove(); back.remove(); };
+    back.onclick=closeAll;
+    document.addEventListener('keydown', function onEsc(e){ if(e.key==='Escape'){ closeAll(); document.removeEventListener('keydown', onEsc); }});
+
     const q=s=>card.querySelector(s);
     const updKind=()=>{ q('#kgb_kind').textContent=appKind(); };
     const setStatus=(t)=>{ q('#gd_status').textContent='Status: '+t; };
 
+    q('#kgb_close').onclick=closeAll;
     q('#kgb_kind_budget').onclick=()=>{ setAppKind('budget'); updKind(); };
     q('#kgb_kind_full').onclick=()=>{ setAppKind('full'); updKind(); };
     q('#gd_save').onclick=()=>{ localStorage.setItem(LS_GDRIVE_CID, q('#gd_cid').value.trim()); toast('Client ID opgeslagen'); };
@@ -180,12 +201,7 @@
   }
 
   (window.KGB_READY?window.KGB_READY:Promise.resolve()).finally(()=>{ 
-    if(!$('#kgb_sync_btn')){
-      const mk=(id,txt,right)=>{const b=document.createElement('button'); b.id=id;b.textContent=txt;b.style.cssText=`position:fixed;top:10px;right:${right}px;z-index:9996;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer`; document.body.appendChild(b); return b;};
-      mk('kgb_export_btn','💾 Export',250).onclick=()=>exportSmart().catch(e=>toast('Fout: '+e.message));
-      mk('kgb_import_btn','📥 Import',160).onclick=()=>{ const f=document.createElement('input'); f.type='file'; f.accept='application/json,.json'; f.onchange=e=>{const file=e.target.files?.[0]; if(file) importFromFile(file).catch(err=>toast('Fout: '+err.message));}; f.click(); };
-      mk('kgb_sync_btn','☁️ Drive',10).onclick=openPanel;
-    }
+    ensureButtons();
     try{ autoYearFromCurrentData(); }catch{}
   });
 })();
