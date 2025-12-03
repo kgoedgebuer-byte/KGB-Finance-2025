@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="../common/sync_embed.css">
   <link rel="stylesheet" href="../common/ui_fix.css">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="app-build" content="1764788988">\
 </head>
 <body>
 <header class="bar">
@@ -173,7 +174,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister())).catch(()=>{});}</script>
   <script src="../common/sync_embed.js" defer></script>
   <script src="../common/kgb_year_dropdown.js" defer></script>
   <script src="../common/drive_autopull.js"></script>
