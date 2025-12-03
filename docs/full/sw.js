@@ -1,4 +1,4 @@
-const CACHE = 'kgb-full-v14';
+const CACHE = 'kgb-full-v16';
 self.addEventListener('install', e => e.waitUntil(
   caches.open(CACHE).then(c => c.addAll(['./','./index.html','./manifest.webmanifest']))
 ));
