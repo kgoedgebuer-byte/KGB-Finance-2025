@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8">
+<title>KGB — Cache wissen</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto;max-width:720px;margin:4rem auto;padding:0 1rem;line-height:1.5}</style>
+<h2>Cache wissen…</h2>
+<p>Service worker, caches en lokale opslag worden verwijderd.</p>
+<script>
+(async ()=>{
+  try{
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) { try{await r.unregister()}catch(e){} }
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k).catch(()=>{})));
+    }
+    try{ localStorage.clear(); sessionStorage.clear(); }catch(e){}
+    document.body.innerHTML = "<h2>✅ Cache gewist</h2><p>Sluit dit tabblad en open de app opnieuw.</p>";
+  }catch(e){
+    document.body.insertAdjacentHTML("beforeend","<pre>"+String(e)+"</pre>");
+  }
+})();
+</script>
