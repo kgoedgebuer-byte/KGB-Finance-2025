@@ -1,0 +1,11 @@
+.kgb-sync-back{position:fixed;inset:0;background:rgba(2,6,23,.35);backdrop-filter:blur(2px);z-index:9996}
+.kgb-sync{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9997}
+.kgb-sync .card{width:min(94vw,560px);background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 12px 40px rgba(2,6,23,.18);padding:16px}
+.kgb-sync h3{margin:0 0 8px}
+.kgb-sync .row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.kgb-sync label{display:flex;flex-direction:column;gap:6px;flex:1 1 220px}
+.kgb-sync input,.kgb-sync select{padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+.kgb-sync .buttons{display:flex;gap:8px;flex-wrap:wrap}
+#kgb_sync_btn{position:fixed;top:10px;right:120px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer;z-index:9996}
+#kgb_reload_bar{position:fixed;left:0;right:0;top:0;display:none;z-index:9995;padding:10px 14px;text-align:center;background:#fde68a;border-bottom:1px solid #f59e0b;color:#713f12}
+#kgb_reload_bar button{margin-left:10px;padding:6px 10px;border:1px solid #f59e0b;border-radius:8px;background:#fff;cursor:pointer}
