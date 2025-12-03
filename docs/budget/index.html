@@ -11,6 +11,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script defer src="app.js"></script>
   <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
+  <link rel="stylesheet" href="../common/sync_embed.css">
 </head>
 <body>
 <header class="bar">
@@ -110,5 +111,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+  <script src="../common/sync_embed.js" defer></script>
+  <script src="../common/kgb_year_dropdown.js" defer></script>
 </body>
 </html>
