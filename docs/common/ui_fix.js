@@ -1,86 +1,96 @@
 (function(){
-  // --- helpers ---
-  const $all = (sel,root=document) => Array.from(root.querySelectorAll(sel));
-  const toast = (msg)=>{const t=document.createElement('div');t.className='kgb-toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2000);};
+  const $all=(s,r=document)=>Array.from(r.querySelectorAll(s));
+  const toast=(m)=>{const t=document.createElement('div');t.className='kgb-toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);};
 
-  // Vind container met de grote knoppen (Dashboard/Budget/…)
   function findButtonRow(){
-    const candidates = $all('nav,.nav,.tabs,.pill-row,.buttons,.btn-row,header,main .row,section');
-    for(const el of candidates){
+    // Zoek container met de hoofdknoppen
+    const cands=$all('nav,.nav,.tabs,.pill-row,.buttons,.btn-row,.chip-row,header,main section,main .row');
+    for(const el of cands){
       const txt=(el.textContent||'').toLowerCase();
       if(/dashboard|budget|belegging|crypto|agenda|familie|thema|export|import/.test(txt)) return el;
     }
     return null;
   }
 
-  // Vind de jaar-select (heuristiek op opties die op jaar lijken)
-  function findYearSelect(){
-    const sels=$all('select');
-    for(const s of sels){
-      const vals=[...s.options].slice(0,6).map(o=>o.text.trim());
-      if(vals.some(v=>/^\d{4}$/.test(v))) return s;
+  function findYearBlock(){
+    // 1) Select met jaartallen
+    for(const sel of $all('select')){
+      const vals=[...sel.options].slice(0,10).map(o=>o.text.trim());
+      if(vals.filter(v=>/^\d{4}$/.test(v)).length>=3){
+        // neem wrapper als die een label 'Jaar' bevat, anders de select zelf
+        let wrap=sel.closest('div');
+        const label=wrap?.querySelector('label,span,strong,b');
+        if(!(label&&/^\s*jaar[:\s]?$/i.test((label.textContent||'').trim()))){
+          // bouw chip wrapper
+          const chip=document.createElement('div'); chip.className='kgb-year-chip';
+          const lab=document.createElement('label'); lab.textContent='Jaar:';
+          chip.append(lab, sel);
+          return chip;
+        }else{
+          // gebruik bestaande wrapper maar maak hem 'chip'
+          wrap.classList.add('kgb-year-chip');
+          return wrap;
+        }
+      }
     }
-    // fallback: element met tekst 'Jaar'
-    const label=$all('label,span,strong,b').find(n=>/^\s*jaar/i.test(n.textContent||''));
-    if(label){
-      const near = label.closest('div')?.querySelector('select') || label.parentElement?.querySelector('select');
-      if(near) return near;
+    // 2) fallback: element dat 'Jaar' toont met select in buurt
+    const lab=$all('label,span,strong,b').find(n=>/^\s*jaar/i.test(n.textContent||''));
+    if(lab){
+      const sel=lab.parentElement?.querySelector('select')||lab.closest('div')?.querySelector('select');
+      if(sel){
+        const chip=document.createElement('div'); chip.className='kgb-year-chip';
+        const lab2=document.createElement('label'); lab2.textContent='Jaar:';
+        chip.append(lab2, sel);
+        return chip;
+      }
     }
     return null;
   }
 
-  function moveYearIntoButtons(){
-    const sel = findYearSelect();
-    const row = findButtonRow();
-    if(!sel || !row) return false;
+  function stripFixedStyles(el){
+    const s=el.style; ['position','top','left','right','bottom','zIndex','boxShadow','background'].forEach(k=>s[k]='');
+  }
 
-    // verwijder eventuele absolute/fixed styles
-    sel.style.position='static'; sel.style.top=''; sel.style.left=''; sel.style.right=''; sel.style.bottom='';
-    sel.style.zIndex=''; sel.style.boxShadow=''; sel.style.background='';
+  function placeYear(){
+    const row=findButtonRow();
+    const block=findYearBlock();
+    if(!row||!block) return false;
 
-    // bouw chip
-    const wrap=document.createElement('div'); wrap.className='kgb-year-wrap';
-    const chip=document.createElement('div'); chip.className='kgb-year-chip';
-    const lab=document.createElement('label'); lab.textContent='Jaar:';
-    chip.append(lab, sel);
-    wrap.append(chip);
-
-    // plaats helemaal links in de rij
-    row.insertBefore(wrap, row.firstChild);
+    // Als block net gemaakt is (nog niet in DOM), prima. Als het al in DOM zit: eerst styles neutraliseren en losmaken.
+    stripFixedStyles(block);
+    try{ block.parentElement && block.parentElement.removeChild(block); }catch(_){}
+    row.insertBefore(block, row.firstChild);
     return true;
   }
 
-  // --- PWA install ---
-  function setupInstallButton(){
+  // PWA install knop
+  function setupInstall(){
     let deferred;
-    window.addEventListener('beforeinstallprompt', (e)=>{
-      e.preventDefault(); deferred=e; addInstallButton();
-    });
-
-    function addInstallButton(){
+    const addBtn=()=>{
       if(document.querySelector('.kgb-install-btn')) return;
-      const row = findButtonRow(); if(!row) return;
-      const btn=document.createElement('button');
-      btn.className='kgb-install-btn'; btn.textContent='Installeer app';
+      const row=findButtonRow(); if(!row) return;
+      const btn=document.createElement('button'); btn.className='kgb-install-btn'; btn.textContent='Installeer app';
       btn.onclick=async()=>{
-        if(deferred){ deferred.prompt(); const _=await deferred.userChoice; }
-        else if(/iphone|ipad|ipod/i.test(navigator.userAgent)){
-          toast('iOS: Deelknop ▶︎ “Zet op beginscherm”');
-        }else{
-          toast('Gebruik browsermenu ▶︎ “Install app / Add to Home screen”');
-        }
+        if(deferred){ deferred.prompt(); try{ await deferred.userChoice; }catch(_){ } }
+        else if(/iphone|ipad|ipod/i.test(navigator.userAgent)){ toast('iOS: Deelknop ▶︎ “Zet op beginscherm”'); }
+        else{ toast('Browsermenu ▶︎ “Install app / Add to Home screen”'); }
       };
-      // plaats rechts in de rij
       row.appendChild(btn);
-    }
-
-    // iOS hint (geen event)
-    if(/iphone|ipad|ipod/i.test(navigator.userAgent)){
-      setTimeout(()=>{ if(!document.querySelector('.kgb-install-btn')) addInstallButton(); }, 800);
-    }
+    };
+    window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferred=e; addBtn(); });
+    if(/iphone|ipad|ipod/i.test(navigator.userAgent)){ setTimeout(addBtn, 800); }
   }
 
-  // run
-  const init=()=>{ moveYearIntoButtons(); setupInstallButton(); };
+  function init(){
+    // probeer meteen
+    placeYear();
+    setupInstall();
+    // probeer nog een paar keer na initialisatie (SPA)
+    let tries=0; const iv=setInterval(()=>{ if(placeYear()||++tries>20) clearInterval(iv); }, 250);
+    // observeer mutaties (route/DOM updates)
+    const mo=new MutationObserver(()=>placeYear());
+    mo.observe(document.body,{childList:true,subtree:true});
+  }
+
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
