@@ -170,10 +170,10 @@
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
   <script src="../common/sync_embed.js" defer></script>
   <script src="../common/kgb_year_dropdown.js" defer></script>
   <script src="../common/drive_autopull.js"></script>

@@ -1,10 +1,7 @@
-const CACHE = 'kgb-budget-v16';
-self.addEventListener('install', e => e.waitUntil(
-  caches.open(CACHE).then(c => c.addAll(['./','./index.html','./manifest.webmanifest']))
-));
-self.addEventListener('activate', e => e.waitUntil(
-  caches.keys().then(keys => Promise.all(keys.filter(k => k!==CACHE).map(k => caches.delete(k)))))
-);
-self.addEventListener('fetch', e => e.respondWith(
-  caches.match(e.request).then(r => r || fetch(e.request))
-));
+/* KGB kill-SW: verwijder alle caches en schrijf jezelf uit */
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => e.waitUntil((async()=>{
+  try{ const names=await caches.keys(); await Promise.all(names.map(n=>caches.delete(n))); }catch(e){}
+  try{ await self.registration.unregister(); }catch(e){}
+  try{ const cs=await self.clients.matchAll({type:"window"}); cs.forEach(c=>c.navigate(c.url)); }catch(e){}
+})()));
