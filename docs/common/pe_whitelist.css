@@ -1,0 +1,14 @@
+/* --- Pointer Events Whitelist (hard override) --- */
+/* Zet overal klikken UIT... */
+* { pointer-events: none !important; }
+/* ...behalve op UI-elementen */
+a, button, input, select, textarea, label, summary,
+[role="button"], [role="link"], [role="tab"],
+[onclick], [tabindex], [contenteditable="true"],
+details, dialog, .btn, .button, .tab, .tab-item {
+  pointer-events: auto !important;
+}
+/* Zorg dat app-host altijd kliks krijgt */
+#root, #app, main, body { pointer-events: auto !important; }
+/* Dialogs mogen nog bediend worden (maar blokkeren niet de rest) */
+dialog, dialog * { pointer-events: auto !important; }
