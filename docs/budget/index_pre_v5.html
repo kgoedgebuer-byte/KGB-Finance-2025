@@ -2,123 +2,91 @@
 <html lang="nl">
 <head>
 
-<style id="kgb-v5-style">
-  #kgb-v5-btn{position:fixed;right:14px;bottom:14px;z-index:2147483647;padding:10px 12px;border:0;border-radius:12px;
+<style id="kgb-stopladen-style-v1">
+  #kgb-stop-btn{position:fixed;right:14px;bottom:14px;z-index:2147483647;padding:10px 12px;border:0;border-radius:12px;
     background:#0a7d39;color:#fff;font:13px/1.2 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 6px 26px rgba(0,0,0,.25);cursor:pointer}
-  #kgb-v5-btn small{display:block;font-size:11px;opacity:.85}
+  #kgb-stop-btn small{display:block;font-size:11px;opacity:.85}
 </style>
-<script id="kgb-v5">
+<script id="kgb-stopladen-v1">
 (function(){
-  if (window.__KGB_V5__) return; window.__KGB_V5__=true;
+  if (window.__KGB_STOP_LADEN_V1__) return; window.__KGB_STOP_LADEN_V1__=true;
+
+  function unclog(doc, win){
+    try{
+      // Unfreeze
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+
+      // Overlays weg
+      const vw = (win||window).innerWidth||1, vh=(win||window).innerHeight||1, A=vw*vh;
+      const pts=[[vw/2,vh/2],[6,6],[vw-6,6],[6,vh-6],[vw-6,vh-6]];
+      const seen=new Set(), pick=[];
+      for(const [x,y] of pts){
+        const stack = doc.elementsFromPoint ? doc.elementsFromPoint(x,y) : [];
+        for(const el of stack){
+          if(!el||seen.has(el)) continue; seen.add(el);
+          const cs = (win||window).getComputedStyle(el); if(!cs) continue;
+          const r = el.getBoundingClientRect(); if(!r) continue;
+          const ratio = (Math.max(0,r.width)*Math.max(0,r.height))/A;
+          const zi = parseInt(cs.zIndex||'0')||0;
+          const looks = ratio>0.70 ||
+                        ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
+                        /(backdrop|overlay|modal|scrim|spinner|loading|blocker)/i.test(el.className||'') ||
+                        (el.tagName==='IFRAME' && ratio>0.50);
+          if (looks) pick.push(el);
+        }
+      }
+      const uniq=[]; const s2=new Set(); for(const el of pick){ if(!s2.has(el)){ uniq.push(el); s2.add(el);} }
+      for(const el of uniq){
+        try{
+          if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
+          el.style.pointerEvents='none'; el.style.background='transparent'; el.style.backdropFilter='none';
+          el.removeAttribute('inert');
+        }catch(_){}
+      }
+
+      // UI klikbaar
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ const cs=(win||window).getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; el.removeAttribute('disabled'); });
+      (doc.getElementById('root')||doc.getElementById('app')||doc.body).style.pointerEvents='auto';
+    }catch(_){}
+  }
 
   function clearSW(){
     try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});} }catch(_){}
     try{ if(window.caches&&caches.keys){ caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{});} }catch(_){}
   }
 
-  function unfreeze(doc){
-    try{
-      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
-      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
-      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
-      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; el.removeAttribute('disabled'); });
-      doc.documentElement.style.opacity='1'; doc.body.style.opacity='1';
-    }catch(_){}
-  }
+  function runAll(){ unclog(document, window); }
 
-  function killCovers(doc){
-    try{
-      const vw=doc.defaultView.innerWidth||1, vh=doc.defaultView.innerHeight||1, A=vw*vh;
-      const all = doc.body ? doc.body.getElementsByTagName('*') : [];
-      const max = Math.min(all.length, 8000);
-      let n=0;
-      for (let i=0;i<max;i++){
-        const el = all[i]; if(!el) break;
-        if (el===doc.documentElement||el===doc.body) continue;
-        const cs = doc.defaultView.getComputedStyle(el); if(!cs) continue;
-        const r = el.getBoundingClientRect(); if(!r) continue;
-        const area = Math.max(0,r.width)*Math.max(0,r.height);
-        const ratio = area/A;
-        // NEEM ALLES ≥90% of full-viewport achtig (ongeacht position)
-        const looks = ratio>=0.90 ||
-          ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90));
-        if (looks){
-          // Laat root containers met veel children meestal met rust
-          const tag = el.tagName;
-          const isApp = /^(MAIN|DIV|SECTION)$/.test(tag) && (el.id==='root'||el.id==='app');
-          if (isApp) continue;
-          // neutraliseer
-          el.style.pointerEvents='none';
-          el.style.background='transparent';
-          el.style.backdropFilter='none';
-          el.style.filter='none';
-          el.removeAttribute('inert');
-          n++;
-        }
-      }
-      return n;
-    }catch(_){ return 0; }
-  }
-
-  function forceOnce(){
-    try{
-      clearSW();
-      unfreeze(document);
-      const n=killCovers(document);
-      // tweede kans na korte delay
-      setTimeout(()=>{ unfreeze(document); killCovers(document); }, 200);
-      return n;
-    }catch(_){ return 0; }
-  }
-
+  // Zet knop
   function mountBtn(){
-    if (document.getElementById('kgb-v5-btn')) return;
+    if (document.getElementById('kgb-stop-btn')) return;
     const b=document.createElement('button');
-    b.id='kgb-v5-btn';
-    b.innerHTML='Forceer klikken nu <small>(overlays weg & SW/caches leeg)</small>';
-    b.onclick=()=>{ forceOnce(); setTimeout(forceOnce,200); setTimeout(forceOnce,800); };
+    b.id='kgb-stop-btn';
+    b.innerHTML='Stop laden <small>(ontgrendel & maak klikbaar)</small>';
+    b.onclick=()=>{ clearSW(); runAll(); setTimeout(runAll,300); setTimeout(runAll,1200); };
     document.body.appendChild(b);
   }
 
-  function schedule(aggressive){
-    if (aggressive){
-      // extra agressief: meerdere runs in eerste seconden
-      forceOnce();
-      setTimeout(forceOnce, 150);
-      setTimeout(forceOnce, 500);
-      setTimeout(forceOnce, 1200);
-      setTimeout(forceOnce, 2500);
-    } else {
-      forceOnce();
-      setTimeout(forceOnce, 400);
-      setTimeout(forceOnce, 1500);
-    }
+  // Auto: probeer na load + retries
+  function schedule(){
+    clearSW();
+    runAll();
+    setTimeout(runAll, 200);
+    setTimeout(runAll, 800);
+    setTimeout(runAll, 1600);
     mountBtn();
   }
 
-  // Autostart (Full agressiever dan Budget)
-  var aggressive = /\/full\//.test(location.pathname);
-
-  if (document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded', ()=>schedule(aggressive), {once:true});
+  if (document.readyState==='loading') {
+    document.addEventListener('DOMContentLoaded', schedule, {once:true});
   } else {
-    schedule(aggressive);
+    schedule();
   }
-
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) schedule(false); });
-  window.addEventListener('resize', ()=>schedule(false), {passive:true});
-  try{
-    const mo = new MutationObserver(()=>schedule(false));
-    mo.observe(document.documentElement||document.body, {subtree:true, childList:true, attributes:true});
-  }catch(_){}
 })();
 </script>
-
-
-
-
 
 
 
