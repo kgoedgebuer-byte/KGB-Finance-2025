@@ -2,6 +2,146 @@
 <html lang="nl">
 <head>
 
+<style id="kgb-clickdiag-style">
+#kgb-clickdiag{position:fixed;left:10px;bottom:10px;z-index:2147483647;background:#111;color:#0f0;
+  border:1px solid #0f0;border-radius:10px;padding:8px 10px;font:12px/1.25 -apple-system,Segoe UI,Arial,sans-serif}
+#kgb-clickdiag button{margin-left:6px;padding:4px 8px;border:1px solid #0f0;background:#000;color:#0f0;border-radius:6px;cursor:pointer}
+#kgb-list{margin-top:6px;max-height:28vh;overflow:auto}
+#kgb-list .row{display:flex;gap:6px;align-items:center;margin:4px 0}
+#kgb-list .tag{background:#0f0;color:#111;padding:2px 6px;border-radius:6px;font-weight:600}
+#kgb-list .kill{padding:2px 6px;border-radius:6px;border:1px solid #f66;color:#f66;background:#200;cursor:pointer}
+</style>
+<script id="kgb-clickdiag">
+(function(){
+  if(window.__KGB_CLICKDIAG__)return; window.__KGB_CLICKDIAG__=1;
+  function unlock(doc){
+    try{
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      const host=(doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body);
+      if(host) host.style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){ } });
+    }catch(_){}
+  }
+  function looksCover(el,vw,vh){
+    try{
+      if(!el||el===document.documentElement||el===document.body) return false;
+      const r=el.getBoundingClientRect(), A=Math.max(1,vw*vh), ratio=(Math.max(0,r.width)*Math.max(0,r.height))/A;
+      const cs=getComputedStyle(el), cls=((el.className||'')+' '+(el.id||'')).toLowerCase();
+      if(/\b(overlay|backdrop|modal|scrim|spinner|loading|blocker)\b/.test(cls)) return true;
+      if((cs.position==='fixed'||cs.position==='absolute'||cs.position==='sticky') &&
+         r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) return true;
+      if(ratio>=0.90) return true;
+      return false;
+    }catch(_){ return false; }
+  }
+  function stackAt(x,y){
+    const vw=innerWidth||1, vh=innerHeight||1;
+    const list=(document.elementsFromPoint?document.elementsFromPoint(x,y):[]).filter(Boolean);
+    return list.filter(el=>looksCover(el,vw,vh));
+  }
+  function kill(el){
+    try{ el.style.setProperty('display','none','important'); el.style.setProperty('pointer-events','none','important'); el.removeAttribute('inert'); }catch(_){}
+  }
+  function refreshList(){
+    unlock(document);
+    const x=innerWidth/2, y=innerHeight/2;
+    const covers=[...new Set([...stackAt(x,y),...stackAt(6,6),...stackAt(innerWidth-6,6),...stackAt(6,innerHeight-6),...stackAt(innerWidth-6,innerHeight-6)])];
+    const list=document.getElementById('kgb-list'); list.innerHTML='';
+    if(!covers.length){ list.innerHTML='<div>Geen blockers gedetecteerd.</div>'; return; }
+    covers.slice(0,12).forEach((el,i)=>{
+      const r=el.getBoundingClientRect(), tag=el.tagName.toLowerCase(), id=el.id?('#'+el.id):'', cls=(el.className && ('.'+String(el.className).trim().replace(/\s+/g,'.'))) || '';
+      const row=document.createElement('div'); row.className='row';
+      const label=document.createElement('span'); label.className='tag'; label.textContent=`${i+1}) ${tag}${id}${cls} — ${Math.round(r.width)}×${Math.round(r.height)} `;
+      const btn=document.createElement('button'); btn.className='kill'; btn.textContent='Verwijder';
+      btn.onclick=()=>{ kill(el); refreshList(); };
+      row.appendChild(label); row.appendChild(btn); list.appendChild(row);
+    });
+  }
+  const box=document.createElement('div');
+  box.id='kgb-clickdiag';
+  box.innerHTML='<b>Diagnose klik</b> <button id="kgb-scan">Scan</button> <button id="kgb-auto">Auto</button><div id="kgb-list"></div>';
+  document.body.appendChild(box);
+  document.getElementById('kgb-scan').onclick=refreshList;
+  let autoT=null;
+  document.getElementById('kgb-auto').onclick=()=>{ if(autoT){clearInterval(autoT);autoT=null;return;} autoT=setInterval(refreshList,500); };
+  setTimeout(refreshList, 200);
+})();
+</script>
+
+
+<style id="kgb-clickdiag-style">
+#kgb-clickdiag{position:fixed;left:10px;bottom:10px;z-index:2147483647;background:#111;color:#0f0;
+  border:1px solid #0f0;border-radius:10px;padding:8px 10px;font:12px/1.25 -apple-system,Segoe UI,Arial,sans-serif}
+#kgb-clickdiag button{margin-left:6px;padding:4px 8px;border:1px solid #0f0;background:#000;color:#0f0;border-radius:6px;cursor:pointer}
+#kgb-list{margin-top:6px;max-height:28vh;overflow:auto}
+#kgb-list .row{display:flex;gap:6px;align-items:center;margin:4px 0}
+#kgb-list .tag{background:#0f0;color:#111;padding:2px 6px;border-radius:6px;font-weight:600}
+#kgb-list .kill{padding:2px 6px;border-radius:6px;border:1px solid #f66;color:#f66;background:#200;cursor:pointer}
+</style>
+<script id="kgb-clickdiag">
+(function(){
+  if(window.__KGB_CLICKDIAG__)return; window.__KGB_CLICKDIAG__=1;
+  function unlock(doc){
+    try{
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      const host=(doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body);
+      if(host) host.style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){ } });
+    }catch(_){}
+  }
+  function looksCover(el,vw,vh){
+    try{
+      if(!el||el===document.documentElement||el===document.body) return false;
+      const r=el.getBoundingClientRect(), A=Math.max(1,vw*vh), ratio=(Math.max(0,r.width)*Math.max(0,r.height))/A;
+      const cs=getComputedStyle(el), cls=((el.className||'')+' '+(el.id||'')).toLowerCase();
+      if(/\b(overlay|backdrop|modal|scrim|spinner|loading|blocker)\b/.test(cls)) return true;
+      if((cs.position==='fixed'||cs.position==='absolute'||cs.position==='sticky') &&
+         r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) return true;
+      if(ratio>=0.90) return true;
+      return false;
+    }catch(_){ return false; }
+  }
+  function stackAt(x,y){
+    const vw=innerWidth||1, vh=innerHeight||1;
+    const list=(document.elementsFromPoint?document.elementsFromPoint(x,y):[]).filter(Boolean);
+    return list.filter(el=>looksCover(el,vw,vh));
+  }
+  function kill(el){
+    try{ el.style.setProperty('display','none','important'); el.style.setProperty('pointer-events','none','important'); el.removeAttribute('inert'); }catch(_){}
+  }
+  function refreshList(){
+    unlock(document);
+    const x=innerWidth/2, y=innerHeight/2;
+    const covers=[...new Set([...stackAt(x,y),...stackAt(6,6),...stackAt(innerWidth-6,6),...stackAt(6,innerHeight-6),...stackAt(innerWidth-6,innerHeight-6)])];
+    const list=document.getElementById('kgb-list'); list.innerHTML='';
+    if(!covers.length){ list.innerHTML='<div>Geen blockers gedetecteerd.</div>'; return; }
+    covers.slice(0,12).forEach((el,i)=>{
+      const r=el.getBoundingClientRect(), tag=el.tagName.toLowerCase(), id=el.id?('#'+el.id):'', cls=(el.className && ('.'+String(el.className).trim().replace(/\s+/g,'.'))) || '';
+      const row=document.createElement('div'); row.className='row';
+      const label=document.createElement('span'); label.className='tag'; label.textContent=`${i+1}) ${tag}${id}${cls} — ${Math.round(r.width)}×${Math.round(r.height)} `;
+      const btn=document.createElement('button'); btn.className='kill'; btn.textContent='Verwijder';
+      btn.onclick=()=>{ kill(el); refreshList(); };
+      row.appendChild(label); row.appendChild(btn); list.appendChild(row);
+    });
+  }
+  const box=document.createElement('div');
+  box.id='kgb-clickdiag';
+  box.innerHTML='<b>Diagnose klik</b> <button id="kgb-scan">Scan</button> <button id="kgb-auto">Auto</button><div id="kgb-list"></div>';
+  document.body.appendChild(box);
+  document.getElementById('kgb-scan').onclick=refreshList;
+  let autoT=null;
+  document.getElementById('kgb-auto').onclick=()=>{ if(autoT){clearInterval(autoT);autoT=null;return;} autoT=setInterval(refreshList,500); };
+  setTimeout(refreshList, 200);
+})();
+</script>
+
+
 <script id="kgb-shadow-unblock-v7">
 (function(){
   if (window.__KGB_V7__) return; window.__KGB_V7__=true;

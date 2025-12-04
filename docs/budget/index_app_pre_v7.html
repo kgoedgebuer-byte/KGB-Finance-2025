@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="nl">
+<head>
+
+<style id="kgb-killcovermax-style">
+  /* maak host-UI klikbaar */
+  html,body,#root,#app,main{pointer-events:auto !important;opacity:1 !important;visibility:visible !important}
+  [inert]{pointer-events:auto !important}
+</style>
+<script id="kgb-killcover-max">
+(function(){
+  if (window.__KGB_KCM__) return; window.__KGB_KCM__=true;
+
+  function unlock(){
+    try{
+      document.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      document.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      document.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      const host=(document.getElementById('root')||document.getElementById('app')||document.querySelector('main')||document.body);
+      if(host) host.style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      document.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){} });
+    }catch(_){}
+  }
+
+  function looksCover(el, vw, vh){
+    try{
+      if(!el || el===document.documentElement || el===document.body) return false;
+      const r = el.getBoundingClientRect();
+      const A = Math.max(1, vw*vh);
+      const ratio = (Math.max(0,r.width)*Math.max(0,r.height))/A;
+      const cls = ((el.className||'')+' '+(el.id||'')).toLowerCase();
+      if (/(overlay|backdrop|modal|scrim|spinner|loading|blocker)/.test(cls)) return true;
+      // full-screen achtig
+      if (ratio >= 0.90) return true;
+      // grote fixed/absolute/ sticky cover
+      const cs = getComputedStyle(el);
+      if ((cs.position==='fixed'||cs.position==='absolute'||cs.position==='sticky') &&
+          r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) return true;
+      return false;
+    }catch(_){ return false; }
+  }
+
+  function nuke(el){
+    try{
+      el.setAttribute('data-kgb-killed','1');
+      el.style.setProperty('display','none','important');
+      el.style.setProperty('pointer-events','none','important');
+      el.removeAttribute('inert');
+    }catch(_){}
+  }
+
+  function killOnce(){
+    unlock();
+    const vw = innerWidth||1, vh = innerHeight||1;
+    const probes = [[vw/2,vh/2],[6,6],[vw-6,6],[6,vh-6],[vw-6,vh-6]];
+    let killed = 0;
+    for(const [x,y] of probes){
+      const stack = (document.elementsFromPoint? document.elementsFromPoint(x,y):[]) || [];
+      for(const el of stack){
+        if (looksCover(el, vw, vh)){
+          nuke(el); killed++;
+          break; // pak hoogste, ga naar volgende probe
+        }
+      }
+    }
+    return killed;
+  }
+
+  function loop(){
+    let t=0, fast = setInterval(()=>{ killOnce(); if(++t>20) clearInterval(fast); }, 300); // ~6s
+    setTimeout(()=>{ setInterval(killOnce, 2000); }, 6500); // daarna elke 2s
+  }
+
+  // start
+  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', ()=>{ unlock(); loop(); }, {once:true}); }
+  else { unlock(); loop(); }
+
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(killOnce,150); });
+})();
+</script>
+
+
+
+
+
+  <link rel="stylesheet" href="../common/force_click.css?v=1764853340">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>KGB Finance 2025 — Budget</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#7c9cf5">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
+  <link rel="stylesheet" href="../common/sync_embed.css">
+  <link rel="stylesheet" href="../common/ui_fix.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+<header class="bar">
+  <h1>💰 KGB Finance 2025 — Budget</h1>
+  <nav class="tabs">
+    <button data-tab="dashboard" class="tab active">Dashboard</button>
+    <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="theme" class="tab">Thema</button>
+    <button data-tab="io" class="tab">Export / Import</button>
+  </nav>
+</header>
+
+<main>
+  <section id="dashboard" class="panel active">
+    <div class="cards">
+      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
+      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
+      <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
+    </div>
+
+    <div class="chartBar">
+      <div class="left">
+        <strong>Grafiek:</strong>
+        <label><input type="radio" name="ctype" value="line" checked> Lijn</label>
+        <label><input type="radio" name="ctype" value="bar"> Balk</label>
+        <label><input type="radio" name="ctype" value="pie"> Cirkel</label>
+      </div>
+      <div class="right">
+        <button id="btnDemo">Demo-data</button>
+        <button id="btnClear">Refresh</button>
+      </div>
+    </div>
+    <canvas id="saldoChart" height="160"></canvas>
+  </section>
+
+  <section id="budget" class="panel">
+    <h2>📋 Budget</h2>
+    <form id="addBudget" class="addForm">
+      <input id="b_date" type="date" required />
+      <input id="b_cat" type="text" placeholder="Categorie" required />
+      <input id="b_desc" type="text" placeholder="Omschrijving" />
+      <input id="b_inc" type="number" step="0.01" inputmode="decimal" placeholder="Inkomen">
+      <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+
+    <div class="tableWrap">
+      <table id="tblBudget" class="grid">
+        <thead>
+          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="theme" class="panel">
+    <h2>🎨 Thema</h2>
+    <div class="themeBox">
+      <label>Onderdeel:
+        <select id="themeTarget">
+          <option value="bg">Achtergrond</option>
+          <option value="card">Kaarten/Tabel</option>
+          <option value="acc">Accent/Knoppen</option>
+          <option value="grid">Rasterlijnen</option>
+          <option value="txt">Tekst</option>
+        </select>
+      </label>
+      <div id="swatches" class="swatches"></div>
+      <div class="sliders">
+        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
+        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
+      </div>
+      <div class="themeBtns">
+        <button id="themeReset">Reset</button>
+        <button id="themeSave">Opslaan</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="io" class="panel">
+    <h2>⬇️ Export / ⬆️ Import</h2>
+    <div class="io-actions">
+      <button id="btnExport">Export JSON</button>
+      <label class="fileLabel">Import JSON <input id="fileImport" type="file" accept="application/json"></label>
+      <button id="btnReset" class="danger">Reset (alles wissen)</button>
+    </div>
+    <p class="muted">PWA – werkt offline na 1× laden.</p>
+  </section>
+</main>
+
+<footer><small>© KGB Finance 2025</small></footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
+}
+</script>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+  <script src="../common/sync_embed.js" defer></script>
+  <script src="../common/kgb_year_dropdown.js" defer></script>
+  <script src="../common/drive_autopull.js"></script>
+  <script src="../common/ui_fix.js"></script>
+  <script defer src="../common/pwa_hotfix.js"></script>
+  <script defer src="../common/layout_fix.js"></script>
+  <script defer src="../common/ui_rescue.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
