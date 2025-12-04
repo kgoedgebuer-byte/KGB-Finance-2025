@@ -419,5 +419,173 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+
+<style id="kgb-fix-style-v3">
+  html, body, #root, #app, main { pointer-events:auto !important; overflow:auto !important; }
+  a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex],canvas {
+    pointer-events:auto !important; touch-action:auto !important;
+  }
+  .kgb-overlay, .overlay, .backdrop, .modal, .scrim, [aria-modal="true"] {
+    pointer-events:none !important; background:transparent !important; backdrop-filter:none !important; filter:none !important;
+  }
+  * { -webkit-user-select:text !important; user-select:text !important; }
+</style>
+<script id="kgb-fix-clicks-v3">
+(function(){
+  if (window.__kgb_fix_v3) return; window.__kgb_fix_v3 = true;
+
+  // ——— 0) Herstel echte SW.register (v2 kon het stubbben)
+  try {
+    if ('serviceWorker' in navigator) {
+      const sw = navigator.serviceWorker;
+      const proto = Object.getPrototypeOf(sw);
+      if (proto && proto.register && sw.register !== proto.register) {
+        sw.register = proto.register.bind(sw); // waarom: app kan wachten op echte Promise van register
+        console.log('KGB v3: SW.register hersteld');
+      }
+    }
+  } catch (e) {}
+
+  // ——— 1) Unfreeze UI: inert weg + dialogs dicht
+  function unfreeze(){
+    try {
+      document.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      document.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(e){} });
+      document.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+    } catch(e){}
+  }
+
+  // ——— 2) Overlays markeren (position agnostisch)
+  function markOverlays(){
+    try{
+      const vw = Math.max(1, innerWidth||1), vh = Math.max(1, innerHeight||1), areaV = vw*vh;
+      const all = document.body ? document.body.getElementsByTagName('*') : [];
+      const limit = Math.min(all.length, 5000);
+      for (let i=0;i<limit;i++){
+        const el = all[i]; if (!el) break;
+        if (el===document.body || el===document.documentElement) continue;
+        const cs = getComputedStyle(el);
+        if (!cs) continue;
+        if (cs.visibility==='hidden' || cs.display==='none') continue;
+        const r = el.getBoundingClientRect?.(); if (!r || r.width<=0 || r.height<=0) continue;
+        const zi = parseInt(cs.zIndex||'0')||0;
+        const area = r.width*r.height, ratio = area/areaV;
+        const looksLikeOverlay =
+          ratio > 0.75 ||
+          ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
+          /(backdrop|overlay|modal|scrim|blocker)/i.test(el.className||'') ||
+          (el.tagName==='IFRAME' && ratio>0.50);
+        if (looksLikeOverlay){
+          el.classList.add('kgb-overlay');
+          if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
+        }
+      }
+    }catch(e){}
+  }
+
+  // ——— 3) Tijdelijk event-unblocker (5s) voor input-events
+  (function eventUnblocker(){
+    const TYPES = new Set(['click','pointerdown','pointerup','touchstart','touchend','mousedown','mouseup','contextmenu']);
+    const oStop = Event.prototype.stopPropagation;
+    const oStopI = Event.prototype.stopImmediatePropagation;
+    const oPrev = Event.prototype.preventDefault;
+    const start = Date.now();
+    function within(){ return (Date.now()-start) < 5000; }
+
+    function guardWrap(orig){
+      return function(...args){
+        if (within() && TYPES.has(this.type)) { /* laat door */ return; }
+        return orig.apply(this, args);
+      };
+    }
+    try {
+      Event.prototype.stopPropagation = guardWrap(oStop);
+      Event.prototype.stopImmediatePropagation = guardWrap(oStopI);
+      Event.prototype.preventDefault = guardWrap(oPrev);
+      setTimeout(()=>{ // restore
+        Event.prototype.stopPropagation = oStop;
+        Event.prototype.stopImmediatePropagation = oStopI;
+        Event.prototype.preventDefault = oPrev;
+      }, 5200);
+    } catch(e){}
+  })();
+
+  // ——— 4) Click proxy: pel overlays weg en redispatch naar onderliggende target
+  function peelTargetAt(x,y){
+    const undo = [];
+    function tempHide(el){
+      const prev = { el, pe: el.style.pointerEvents, vis: el.style.visibility, disp: el.style.display };
+      el.style.pointerEvents = 'none'; el.style.visibility = 'hidden'; el.style.display = 'contents';
+      undo.push(()=>{ el.style.pointerEvents = prev.pe; el.style.visibility = prev.vis; el.style.display = prev.disp; });
+    }
+    try{
+      const stack = document.elementsFromPoint ? document.elementsFromPoint(x,y) : [];
+      for (const el of stack){
+        if (!el || el===document.documentElement || el===document.body) continue;
+        const isOverlay = el.classList.contains('kgb-overlay') ||
+                          /(backdrop|overlay|modal|scrim|blocker)/i.test(el.className||'');
+        if (isOverlay) tempHide(el);
+      }
+      let target = document.elementFromPoint(x,y);
+      undo.forEach(fn=>fn());
+      return target && target !== document.documentElement && target !== document.body ? target : null;
+    }catch(e){ undo.forEach(fn=>fn()); return null; }
+  }
+  function redispatchLike(type, srcEvt, toEl){
+    try{
+      const ev = new srcEvt.constructor(type, srcEvt);
+      toEl.dispatchEvent(ev);
+      if (type==='click' && typeof toEl.click==='function') { toEl.click(); }
+    }catch(e){}
+  }
+  function onCapture(e){
+    const x = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? 0;
+    const y = e.clientY ?? (e.touches and e.touches[0] and e.touches[0].clientY) ?? 0;
+    const under = peelTargetAt(x,y);
+    if (!under || under===e.target) return; // niets te doen
+    try{
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }catch(_){}
+    // redispatch relevante events naar onderliggende
+    const types = e.type === 'pointerup' ? ['pointerdown','pointerup','click'] :
+                  e.type === 'mouseup'    ? ['mousedown','mouseup','click'] :
+                  e.type === 'touchend'   ? ['touchstart','touchend','click'] : ['click'];
+    for (const t of types) redispatchLike(t, e, under);
+  }
+
+  // ——— 5) Schedules & observers
+  function runAll(){ unfreeze(); markOverlays(); }
+  function schedule(){
+    runAll();
+    setTimeout(runAll, 100);
+    setTimeout(runAll, 500);
+    setTimeout(runAll, 1500);
+  }
+  window.addEventListener('load', schedule, {once:true});
+  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) schedule(); });
+  window.addEventListener('resize', ()=> schedule(), {passive:true});
+
+  try {
+    const mo = new MutationObserver(()=> runAll());
+    mo.observe(document.documentElement||document.body, {subtree:true, childList:true, attributes:true});
+  } catch(e){}
+
+  // capture earliest
+  window.addEventListener('click', onCapture, true);
+  window.addEventListener('pointerup', onCapture, true);
+  window.addEventListener('mouseup', onCapture, true);
+  window.addEventListener('touchend', onCapture, true);
+
+  // Debug helper
+  window.KGB_FIX_TOGGLE = function(){
+    const p = (e)=>{ const x=e.clientX, y=e.clientY; console.log('KGB v3 stack @',x,y, document.elementsFromPoint(x,y)); };
+    const on = !window.__kgb_dbg; window.__kgb_dbg = on;
+    if (on) { window.addEventListener('click', p); console.log('KGB v3 debug ON'); }
+    else { window.removeEventListener('click', p); console.log('KGB v3 debug OFF'); }
+  };
+})();
+</script>
+
 </body>
 </html>
