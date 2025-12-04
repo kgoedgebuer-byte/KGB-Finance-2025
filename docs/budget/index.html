@@ -1,198 +1,7 @@
 <link rel="stylesheet" href="../common/panic.css?v=1764868078"><head>
 
-<style id="kgb-nuke-style">
-  #kgb-nuke{position:fixed;right:12px;bottom:12px;z-index:2147483647;background:#111;color:#0f0;
-    border:1px solid #0f0;border-radius:10px;padding:8px 10px;font:12px/1.25 -apple-system,Segoe UI,Arial,sans-serif}
-  #kgb-nuke button{margin-left:6px;padding:4px 8px;border:1px solid #0f0;background:#000;color:#0f0;border-radius:6px;cursor:pointer}
-</style>
-<script id="kgb-nuke-ui">
-(function(){
-  if(window.__KGB_NUKE__)return; window.__KGB_NUKE__=1;
-
-  function swClear(){
-    try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});} }catch(_){}
-    try{ if(window.caches&&caches.keys){ caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{});} }catch(_){}
-  }
-
-  function unlock(doc){
-    try{
-      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
-      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
-      const host=(doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body);
-      if(host) host.style.pointerEvents='auto';
-      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ try{
-        el.disabled=false; el.removeAttribute('disabled');
-        const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto';
-      }catch(_){ }});
-    }catch(_){}
-  }
-
-  function nuke(){
-    try{
-      const doc=document;
-      const root = doc.getElementById('app') || doc.getElementById('root') || doc.querySelector('main');
-      const keep = new Set([root, doc.documentElement, doc.head, doc.body]);
-      // verwijder ALLES buiten root
-      const all = Array.from(doc.body.children);
-      for(const el of all){
-        if (!keep.has(el) && el !== root) { try{ el.remove(); }catch(_){} }
-      }
-      // in root: verwijder eventuele overlay-kinderen die full-screen zijn
-      if (root){
-        const vw=innerWidth||1, vh=innerHeight||1, A=vw*vh;
-        root.querySelectorAll('*').forEach(el=>{
-          try{
-            const r=el.getBoundingClientRect();
-            const ratio=(Math.max(0,r.width)*Math.max(0,r.height))/Math.max(1,A);
-            const cs=getComputedStyle(el);
-            const cls=((el.className||'')+' '+(el.id||'')).toLowerCase();
-            if (ratio>=0.90 || /\b(overlay|backdrop|modal|scrim|spinner|loading|blocker)\b/.test(cls) ||
-                ((cs.position==='fixed'||cs.position==='absolute') && r.width>=vw*0.98 && r.height>=vh*0.90)) {
-              el.style.setProperty('display','none','important');
-              el.style.setProperty('pointer-events','none','important');
-              el.removeAttribute('inert');
-            }
-          }catch(_){}
-        });
-      }
-      unlock(doc);
-    }catch(_){}
-  }
-
-  // auto-run
-  nuke(); setTimeout(nuke,200); setTimeout(nuke,800);
-
-  // UI
-  const box=document.createElement('div'); box.id='kgb-nuke';
-  box.innerHTML='<b>Noodmodus</b> <button id="kgb-run">Nuke nu</button> <button id="kgb-sw">SW/caches leeg</button>';
-  document.body.appendChild(box);
-  document.getElementById('kgb-run').onclick=()=>{ nuke(); setTimeout(nuke,150); };
-  document.getElementById('kgb-sw').onclick=()=>{ swClear(); alert('Opschoning uitgevoerd. Herlaad de pagina.'); };
-})();
-</script>
-<script src="../common/diag_loader.js?v=1764866021"></script></head>\n<!doctype html>
-<html lang="nl">
-<head>
 
 
-
-
-
-
-<script src="kgb_debug.js?v=1764839472" data-kgb-debug></script>
-
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>KGB Finance 2025 — Budget</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#7c9cf5">
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css" />
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script defer src="app.js"></script>
-  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-</head>
-<body>
-<header class="bar">
-  <h1>💰 KGB Finance 2025 — Budget</h1>
-  <nav class="tabs">
-    <button data-tab="dashboard" class="tab active">Dashboard</button>
-    <button data-tab="budget" class="tab">Budget</button>
-    <button data-tab="theme" class="tab">Thema</button>
-    <button data-tab="io" class="tab">Export / Import</button>
-  </nav>
-</header>
-
-<main>
-  <section id="dashboard" class="panel active">
-    <div class="cards">
-      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
-      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
-      <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
-    </div>
-
-    <div class="chartBar">
-      <div class="left">
-        <strong>Grafiek:</strong>
-        <label><input type="radio" name="ctype" value="line" checked> Lijn</label>
-        <label><input type="radio" name="ctype" value="bar"> Balk</label>
-        <label><input type="radio" name="ctype" value="pie"> Cirkel</label>
-      </div>
-      <div class="right">
-        <button id="btnDemo">Demo-data</button>
-        <button id="btnClear">Refresh</button>
-      </div>
-    </div>
-    <canvas id="saldoChart" height="160"></canvas>
-  </section>
-
-  <section id="budget" class="panel">
-    <h2>📋 Budget</h2>
-    <form id="addBudget" class="addForm">
-      <input id="b_date" type="date" required />
-      <input id="b_cat" type="text" placeholder="Categorie" required />
-      <input id="b_desc" type="text" placeholder="Omschrijving" />
-      <input id="b_inc" type="number" step="0.01" inputmode="decimal" placeholder="Inkomen">
-      <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
-      <button type="submit">➕ Toevoegen</button>
-    </form>
-
-    <div class="tableWrap">
-      <table id="tblBudget" class="grid">
-        <thead>
-          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="theme" class="panel">
-    <h2>🎨 Thema</h2>
-    <div class="themeBox">
-      <label>Onderdeel:
-        <select id="themeTarget">
-          <option value="bg">Achtergrond</option>
-          <option value="card">Kaarten/Tabel</option>
-          <option value="acc">Accent/Knoppen</option>
-          <option value="grid">Rasterlijnen</option>
-          <option value="txt">Tekst</option>
-        </select>
-      </label>
-      <div id="swatches" class="swatches"></div>
-      <div class="sliders">
-        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
-        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
-      </div>
-      <div class="themeBtns">
-        <button id="themeReset">Reset</button>
-        <button id="themeSave">Opslaan</button>
-      </div>
-    </div>
-  </section>
-
-  <section id="io" class="panel">
-    <h2>⬇️ Export / ⬆️ Import</h2>
-    <div class="io-actions">
-      <button id="btnExport">Export JSON</button>
-      <label class="fileLabel">Import JSON <input id="fileImport" type="file" accept="application/json"></label>
-      <button id="btnReset" class="danger">Reset (alles wissen)</button>
-    </div>
-    <p class="muted">PWA – werkt offline na 1× laden.</p>
-  </section>
-</main>
-
-<footer><small>© KGB Finance 2025</small></footer>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
-}
-</script>
 <script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
 
 
@@ -200,5 +9,64 @@ if ('serviceWorker' in navigator) {
 
 
 
+
+<style id="kgb-nood-style">
+  #kgb-nood{position:fixed !important; right:14px !important; bottom:14px !important;
+    z-index:2147483647 !important; background:#0b132b !important; color:#e6fff2 !important;
+    border:1px solid #1bd97b !important; border-radius:12px !important; padding:10px 12px !important;
+    font:12px/1.2 -apple-system,Segoe UI,Arial,sans-serif !important; box-shadow:0 8px 28px rgba(0,0,0,.35) !important}
+  #kgb-nood button{margin-right:6px !important; padding:6px 10px !important; border-radius:8px !important;
+    border:1px solid #1bd97b !important; background:#0f5132 !important; color:#e6fff2 !important; cursor:pointer !important}
+  #kgb-nood button.secondary{background:#021a12 !important}
+</style>
+<script id="kgb-nood-bar">
+(function(){
+  if (window.__KGB_NOODBAR__) return; window.__KGB_NOODBAR__=1;
+
+  function findPanicLink(){
+    const links=[...document.querySelectorAll('link[rel="stylesheet"]')];
+    return links.find(l=>/\/common\/panic\.css\b/.test(l.getAttribute('href')||''));
+  }
+
+  function unlock(doc){
+    try{
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){ } });
+    }catch(_){}
+  }
+
+  function togglePanic(){
+    const link=findPanicLink();
+    if(!link){ alert('panic.css niet gevonden'); return; }
+    // Toggle via disabled attribuut
+    link.disabled = !link.disabled;
+    btn1.textContent = link.disabled ? 'Noodmodus aan' : 'Noodmodus uit';
+    setTimeout(()=>unlock(document), 50);
+  }
+
+  // UI
+  const bar=document.createElement('div');
+  bar.id='kgb-nood';
+  const link=findPanicLink();
+  const btn1=document.createElement('button');
+  btn1.textContent = (link && !link.disabled) ? 'Noodmodus uit' : 'Noodmodus aan';
+  btn1.onclick=togglePanic;
+
+  const btn2=document.createElement('button');
+  btn2.className='secondary';
+  btn2.textContent='Herstel klikken';
+  btn2.onclick=()=>{ unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500); };
+
+  bar.appendChild(btn1); bar.appendChild(btn2);
+  document.body.appendChild(bar);
+
+  // kleine auto-ontgrendeling bij start
+  unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500);
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,78 @@
+
+<style id="kgb-nuke-style">
+  #kgb-nuke{position:fixed;right:12px;bottom:12px;z-index:2147483647;background:#111;color:#0f0;
+    border:1px solid #0f0;border-radius:10px;padding:8px 10px;font:12px/1.25 -apple-system,Segoe UI,Arial,sans-serif}
+  #kgb-nuke button{margin-left:6px;padding:4px 8px;border:1px solid #0f0;background:#000;color:#0f0;border-radius:6px;cursor:pointer}
+</style>
+<script id="kgb-nuke-ui">
+(function(){
+  if(window.__KGB_NUKE__)return; window.__KGB_NUKE__=1;
+
+  function swClear(){
+    try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});} }catch(_){}
+    try{ if(window.caches&&caches.keys){ caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{});} }catch(_){}
+  }
+
+  function unlock(doc){
+    try{
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      const host=(doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body);
+      if(host) host.style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{
+        el.disabled=false; el.removeAttribute('disabled');
+        const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto';
+      }catch(_){ }});
+    }catch(_){}
+  }
+
+  function nuke(){
+    try{
+      const doc=document;
+      const root = doc.getElementById('app') || doc.getElementById('root') || doc.querySelector('main');
+      const keep = new Set([root, doc.documentElement, doc.head, doc.body]);
+      // verwijder ALLES buiten root
+      const all = Array.from(doc.body.children);
+      for(const el of all){
+        if (!keep.has(el) && el !== root) { try{ el.remove(); }catch(_){} }
+      }
+      // in root: verwijder eventuele overlay-kinderen die full-screen zijn
+      if (root){
+        const vw=innerWidth||1, vh=innerHeight||1, A=vw*vh;
+        root.querySelectorAll('*').forEach(el=>{
+          try{
+            const r=el.getBoundingClientRect();
+            const ratio=(Math.max(0,r.width)*Math.max(0,r.height))/Math.max(1,A);
+            const cs=getComputedStyle(el);
+            const cls=((el.className||'')+' '+(el.id||'')).toLowerCase();
+            if (ratio>=0.90 || /\b(overlay|backdrop|modal|scrim|spinner|loading|blocker)\b/.test(cls) ||
+                ((cs.position==='fixed'||cs.position==='absolute') && r.width>=vw*0.98 && r.height>=vh*0.90)) {
+              el.style.setProperty('display','none','important');
+              el.style.setProperty('pointer-events','none','important');
+              el.removeAttribute('inert');
+            }
+          }catch(_){}
+        });
+      }
+      unlock(doc);
+    }catch(_){}
+  }
+
+  // auto-run
+  nuke(); setTimeout(nuke,200); setTimeout(nuke,800);
+
+  // UI
+  const box=document.createElement('div'); box.id='kgb-nuke';
+  box.innerHTML='<b>Noodmodus</b> <button id="kgb-run">Nuke nu</button> <button id="kgb-sw">SW/caches leeg</button>';
+  document.body.appendChild(box);
+  document.getElementById('kgb-run').onclick=()=>{ nuke(); setTimeout(nuke,150); };
+  document.getElementById('kgb-sw').onclick=()=>{ swClear(); alert('Opschoning uitgevoerd. Herlaad de pagina.'); };
+})();
+</script>
+<link rel="stylesheet" href="../common/panic.css?v=1764868078"><!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=../budget/">
+<title>KGB Full → Budget</title>
+<p>Doorsturen naar <a href="../budget/">Budget</a>…</p>
