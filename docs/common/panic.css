@@ -1,0 +1,35 @@
+/* --- PANIC MODE: forceer klikbaarheid, haal blockers weg --- */
+*, *::before, *::after { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
+html, body, #root, #app, main { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
+[inert] { pointer-events: auto !important; }
+
+/* Haal alle fixed/absolute full-screen lagen weg (blokkeerders) */
+body * {
+  /* extreme flatten: */
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  z-index: auto !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Typische overlays / loaders onschadelijk */
+.overlay, .backdrop, .modal, .scrim, .spinner, .loading, .preloader,
+#overlay, #backdrop, #modal, #spinner, #loading,
+[data-loading], [data-blocker], [data-overlay], dialog[open] {
+  display: none !important; pointer-events: none !important; visibility: hidden !important;
+}
+
+/* Iframes blokkeren vaak klikken: zet uit (tijdelijk, voor debug) */
+iframe { display: none !important; pointer-events: none !important; }
+
+/* Maak controls bestuurbaar */
+a, button, input, select, textarea, summary,
+[role="button"], [role="link"], [role="tab"], [onclick], [tabindex] {
+  pointer-events: auto !important;
+}
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  pointer-events: auto !important;
+}

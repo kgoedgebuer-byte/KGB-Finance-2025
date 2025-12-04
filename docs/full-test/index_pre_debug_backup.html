@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>KGB Finance 2025 — Budget</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#7c9cf5">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
+  <link rel="stylesheet" href="../common/sync_embed.css">
+  <link rel="stylesheet" href="../common/ui_fix.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+<header class="bar">
+  <h1>💰 KGB Finance 2025 — Budget</h1>
+  <nav class="tabs">
+    <button data-tab="dashboard" class="tab active">Dashboard</button>
+    <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="theme" class="tab">Thema</button>
+    <button data-tab="io" class="tab">Export / Import</button>
+  </nav>
+</header>
+
+<main>
+  <section id="dashboard" class="panel active">
+    <div class="cards">
+      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
+      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
+      <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
+    </div>
+
+    <div class="chartBar">
+      <div class="left">
+        <strong>Grafiek:</strong>
+        <label><input type="radio" name="ctype" value="line" checked> Lijn</label>
+        <label><input type="radio" name="ctype" value="bar"> Balk</label>
+        <label><input type="radio" name="ctype" value="pie"> Cirkel</label>
+      </div>
+      <div class="right">
+        <button id="btnDemo">Demo-data</button>
+        <button id="btnClear">Refresh</button>
+      </div>
+    </div>
+    <canvas id="saldoChart" height="160"></canvas>
+  </section>
+
+  <section id="budget" class="panel">
+    <h2>📋 Budget</h2>
+    <form id="addBudget" class="addForm">
+      <input id="b_date" type="date" required />
+      <input id="b_cat" type="text" placeholder="Categorie" required />
+      <input id="b_desc" type="text" placeholder="Omschrijving" />
+      <input id="b_inc" type="number" step="0.01" inputmode="decimal" placeholder="Inkomen">
+      <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+
+    <div class="tableWrap">
+      <table id="tblBudget" class="grid">
+        <thead>
+          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="theme" class="panel">
+    <h2>🎨 Thema</h2>
+    <div class="themeBox">
+      <label>Onderdeel:
+        <select id="themeTarget">
+          <option value="bg">Achtergrond</option>
+          <option value="card">Kaarten/Tabel</option>
+          <option value="acc">Accent/Knoppen</option>
+          <option value="grid">Rasterlijnen</option>
+          <option value="txt">Tekst</option>
+        </select>
+      </label>
+      <div id="swatches" class="swatches"></div>
+      <div class="sliders">
+        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
+        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
+      </div>
+      <div class="themeBtns">
+        <button id="themeReset">Reset</button>
+        <button id="themeSave">Opslaan</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="io" class="panel">
+    <h2>⬇️ Export / ⬆️ Import</h2>
+    <div class="io-actions">
+      <button id="btnExport">Export JSON</button>
+      <label class="fileLabel">Import JSON <input id="fileImport" type="file" accept="application/json"></label>
+      <button id="btnReset" class="danger">Reset (alles wissen)</button>
+    </div>
+    <p class="muted">PWA – werkt offline na 1× laden.</p>
+  </section>
+</main>
+
+<footer><small>© KGB Finance 2025</small></footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
+}
+</script>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+  <script src="../common/sync_embed.js" defer></script>
+  <script src="../common/kgb_year_dropdown.js" defer></script>
+  <script src="../common/drive_autopull.js"></script>
+  <script src="../common/ui_fix.js"></script>
+  <script defer src="../common/pwa_hotfix.js"></script>
+  <script defer src="../common/layout_fix.js"></script>
+  <script defer src="../common/ui_rescue.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style id="kgb-fix-style-v3.2">
+  html, body, #root, #app, main { overflow:auto !important; pointer-events:auto !important; }
+  a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex],canvas {
+    pointer-events:auto !important; touch-action:auto !important;
+  }
+  .kgb-overlay, .overlay, .backdrop, .modal, .scrim, [aria-modal="true"] {
+    pointer-events:none !important; background:transparent !important; backdrop-filter:none !important; filter:none !important;
+  }
+  * { -webkit-user-select:text !important; user-select:text !important; }
+</style>
+<script id="kgb-fix-clicks-v3.2">
+(function(){
+  if (window.__kgb_fix_v32) return; window.__kgb_fix_v32 = true;
+
+  function safeSWClean(){
+    try { if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{}); } } catch(e){}
+    try { if (window.caches && caches.keys) { caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).catch(()=>{}); } } catch(e){}
+  }
+
+  function unfreeze(){
+    try{
+      document.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      document.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(e){} });
+      document.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+    }catch(e){}
+  }
+
+  function markOverlays(){
+    try{
+      const vw = Math.max(1, innerWidth||1), vh = Math.max(1, innerHeight||1);
+      const areaV = vw*vh;
+
+      // 1) Via points (centrum + randen)
+      const pts = [[vw/2,vh/2],[6,6],[vw-6,6],[6,vh-6],[vw-6,vh-6],[vw/2,6],[vw/2,vh-6],[6,vh/2],[vw-6,vh/2]];
+      const seen = new Set(), cands = [];
+      for (const [x,y] of pts){
+        const stack = document.elementsFromPoint ? document.elementsFromPoint(x,y) : [];
+        for (const el of stack){
+          if (!el || seen.has(el)) continue; seen.add(el);
+          const cs = getComputedStyle(el); if (!cs) continue;
+          const r = el.getBoundingClientRect?.(); if (!r) continue;
+          const area = Math.max(0,r.width)*Math.max(0,r.height), ratio = area/areaV;
+          const zi = parseInt(cs.zIndex||'0')||0;
+          const looks =
+            ratio>0.70 || ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
+            /(backdrop|overlay|modal|scrim|blocker)/i.test(el.className||'') ||
+            (el.tagName==='IFRAME' && ratio>0.50);
+          if (looks) cands.push(el);
+        }
+      }
+
+      // 2) Snelle scan (limiet 3000 elementen) om grootste fixed/absolute mee te nemen
+      try{
+        const all = document.body ? document.body.getElementsByTagName('*') : [];
+        const max = Math.min(all.length, 3000);
+        let best=null, bestScore=0;
+        for (let i=0;i<max;i++){
+          const el = all[i]; if (!el) break;
+          const cs = getComputedStyle(el); if (!cs) continue;
+          if (!(cs.position==='fixed' || cs.position==='absolute')) continue;
+          const r = el.getBoundingClientRect?.(); if (!r) continue;
+          const zi = parseInt(cs.zIndex||'0')||0;
+          const score = Math.max(0,r.width)*Math.max(0,r.height) * (zi+1);
+          if (score>bestScore){ best=el; bestScore=score; }
+        }
+        if (best) cands.push(best);
+      }catch(e){}
+
+      // 3) Neutraliseer kandidaten
+      const uniq = []; const seen2 = new Set();
+      for (const el of cands){ if (!seen2.has(el)) { uniq.push(el); seen2.add(el); } }
+      for (const el of uniq){
+        try{
+          el.classList.add('kgb-overlay');
+          if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
+          el.style.pointerEvents='none';
+          el.style.background='transparent';
+          el.removeAttribute('inert');
+        }catch(_){}
+      }
+    }catch(e){}
+  }
+
+  function runAll(){ unfreeze(); markOverlays(); }
+  function schedule(){
+    safeSWClean();
+    runAll();
+    setTimeout(runAll, 120);
+    setTimeout(runAll, 600);
+    setTimeout(runAll, 1600);
+    let n=0; const t=setInterval(()=>{ runAll(); if(++n>6) clearInterval(t); }, 700);
+  }
+
+  window.addEventListener('load', schedule, {once:true});
+  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) schedule(); });
+  window.addEventListener('resize', ()=> schedule(), {passive:true});
+
+  try{
+    const mo = new MutationObserver(()=> runAll());
+    mo.observe(document.documentElement||document.body, {subtree:true, childList:true, attributes:true});
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>

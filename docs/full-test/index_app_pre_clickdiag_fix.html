@@ -1,15 +1,111 @@
-<link rel="stylesheet" href="../common/panic.css?v=1764868078"><head><script src="../common/diag_loader.js?v=1764866021"></script></head>\n<!doctype html>
+<!doctype html>
 <html lang="nl">
 <head>
 
+<script id="kgb-shadow-unblock-v7">
+(function(){
+  if (window.__KGB_V7__) return; window.__KGB_V7__=true;
+
+  const OVERLAY_SEL = [
+    '.overlay','.backdrop','.modal','.scrim','.spinner','.loading','.preloader',
+    '#overlay','#backdrop','#modal','#spinner','#loading',
+    '[data-loading]','[data-blocker]','[role="dialog"]'
+  ].join(',');
+
+  function cleanRoot(doc){
+    try{
+      // 1) Unfreeze
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+
+      // 2) Overlays in deze root
+      try {
+        doc.querySelectorAll(OVERLAY_SEL).forEach(el=>{
+          el.style.setProperty('display','none','important');
+          el.style.setProperty('pointer-events','none','important');
+          el.removeAttribute('inert');
+        });
+      } catch(_){}
+
+      // 3) Host-app klikbaar
+      const host = doc.getElementById('root') || doc.getElementById('app') || doc.querySelector('main') || doc.body || doc;
+      if (host && host.style) host.style.pointerEvents='auto';
+
+      // 4) Controls klikbaar
+      const clickables = 'a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(clickables).forEach(el=>{
+        try{
+          el.disabled = false; el.removeAttribute('disabled');
+          const cs = (doc.defaultView||window).getComputedStyle(el);
+          if (cs && cs.pointerEvents==='none') el.style.pointerEvents='auto';
+        }catch(_){}
+      });
+    }catch(_){}
+  }
+
+  // Recurse alle shadowRoots
+  function walk(node){
+    try{
+      const doc = node.nodeType===9 ? node : (node.ownerDocument || document);
+      cleanRoot(node.shadowRoot ? node.shadowRoot : doc);
+      if (node.shadowRoot) {
+        try { node.shadowRoot.querySelectorAll('*').forEach(walk); } catch(_){}
+      }
+    }catch(_){}
+  }
+
+  function runAll(){
+    try{
+      cleanRoot(document);
+      // loop over alle elementen en bezoek hun shadowRoots
+      document.querySelectorAll('*').forEach(el=>{
+        if (el.shadowRoot){ cleanRoot(el.shadowRoot); el.shadowRoot.querySelectorAll('*').forEach(walk); }
+      });
+    }catch(_){}
+  }
+
+  // SW/caches (best effort)
+  function clearSW(){
+    try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});} }catch(_){}
+    try{ if(window.caches&&caches.keys){ caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{});} }catch(_){}
+  }
+
+  function schedule(){
+    clearSW(); runAll();
+    setTimeout(runAll, 150);
+    setTimeout(runAll, 400);
+    setTimeout(runAll, 900);
+    setTimeout(runAll, 1600);
+  }
+
+  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', schedule, {once:true}); }
+  else { schedule(); }
+
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(runAll,150); });
+})();
+</script>
 
 
 
 
 
-<script src="kgb_debug.js?v=1764839472" data-kgb-debug></script>
 
-  <meta charset="utf-8" />
+
+
+
+  <link rel="stylesheet" href="../common/force_click.css?v=1764853340">
+
+
+
+
+
+
+
+
+
+
+<meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>KGB Finance 2025 — Budget</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -19,8 +115,9 @@
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script defer src="app.js"></script>
   <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="../common/sync_embed.css">
+  <link rel="stylesheet" href="../common/ui_fix.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
 <header class="bar">
@@ -120,6 +217,27 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+  <script src="../common/sync_embed.js" defer></script>
+  <script src="../common/kgb_year_dropdown.js" defer></script>
+  <script src="../common/drive_autopull.js"></script>
+  <script src="../common/ui_fix.js"></script>
+  <script defer src="../common/pwa_hotfix.js"></script>
+  <script defer src="../common/layout_fix.js"></script>
+  <script defer src="../common/ui_rescue.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
