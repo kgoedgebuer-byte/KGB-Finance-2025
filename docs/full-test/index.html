@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>KGB Full — TEST (met HUD)</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="../icons/kgb-full-180.png" type="image/png">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    /* UI altijd zichtbaar/klikbaar */
+    html,body,#root,#app,main{pointer-events:auto!important;opacity:1!important;visibility:visible!important}
+    [inert]{pointer-events:auto!important}
+    /* typische loaders/overlays weg */
+    .overlay,.backdrop,.modal,.scrim,.spinner,.loading,.preloader,
+    #overlay,#backdrop,#modal,#spinner,#loading,[data-loading],[data-blocker],dialog[open]{
+      display:none!important;pointer-events:none!important;visibility:hidden!important
+    }
+    /* HUD */
+    #hud{position:fixed;left:10px;top:10px;z-index:2147483647;background:#ffeaea;color:#300;border:1px solid #a00;border-radius:10px;
+         padding:10px 12px;max-width:86vw;max-height:52vh;overflow:auto;font:12px/1.35 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.35)}
+    #hud .row{margin:6px 0}
+    #hud b{color:#900}
+    #hud .ok{color:#070} #hud .bad{color:#a00}
+    #diag{position:fixed;right:10px;bottom:10px;z-index:2147483647;background:#111;color:#0f0;border:1px solid #0f0;border-radius:12px;padding:10px;
+          font:12px/1.35 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.35);max-width:360px}
+    #diag button{padding:6px 8px;border-radius:8px;border:1px solid #0f0;background:#000;color:#0f0;cursor:pointer;margin-right:6px}
+    #diag .log{white-space:pre-wrap;margin-top:6px}
+  </style>
+  <script>
+  // -------- HUD (errors/404/unhandled) --------
+  (function(){
+    const hud = document.createElement('div');
+    hud.id='hud';
+    hud.innerHTML='<b>HUD</b><div id="hudlog" class="row"></div>';
+    document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(hud),{once:true});
+    const L = (...a)=>{ const d=document.getElementById('hudlog'); if(!d) return; const t=a.map(x=> (x&&x.stack)||(x&&x.message)||String(x)).join(' '); d.textContent='['+new Date().toLocaleTimeString()+'] '+t+'\\n'+d.textContent; };
+
+    window.addEventListener('error', e=>L('ERROR:',e.message,'@',e.filename+':'+e.lineno));
+    window.addEventListener('unhandledrejection', e=>L('PROMISE:', e.reason));
+    if (window.fetch){
+      const _f=fetch;
+      window.fetch=(i,o)=>_f(i,o).then(r=>{ if(!r.ok){ try{L('HTTP',r.status,(r.statusText||''),'-',r.url);}catch(_){}} return r;})
+                                 .catch(err=>{ L('FETCH ERR',err); throw err; });
+    }
+    (function(){const X=window.XMLHttpRequest; if(!X) return; const P=X.prototype,O=P.open,S=P.send;
+      P.open=function(m,u){this.__u=u; return O.apply(this,arguments)};
+      P.send=function(){ this.addEventListener('load',()=>{ if(this.status>=400) try{L('XHR',this.status,this.statusText,'-',this.__u);}catch(_){}}); return S.apply(this,arguments)};
+    })();
+  })();
+  </script>
+
+  <!-- Alleen Chart.js + jouw app -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Diagnosepaneel: asset-bisect & klik-probe -->
+  <div id="diag">
+    <div><b>Full — asset test</b></div>
+    <div style="margin:6px 0;color:#9f9">Laad common/* één voor één. Stop bij eerste fout/“klik stuk”.</div>
+    <div>
+      <button id="run">Start bisect</button>
+      <button id="promote">Promote fix → /full</button>
+    </div>
+    <div id="status" class="log"></div>
+  </div>
+
+  <script>
+  (function(){
+    const ASSETS = [
+      // CSS eerst
+      {type:'css', path:'../common/sync_embed.css'},
+      {type:'css', path:'../common/ui_fix.css'},
+      // JS
+      {type:'js',  path:'../common/sync_embed.js'},
+      {type:'js',  path:'../common/kgb_year_dropdown.js'},
+      {type:'js',  path:'../common/drive_autopull.js'},
+      {type:'js',  path:'../common/ui_fix.js'},
+      {type:'js',  path:'../common/pwa_hotfix.js'},
+      {type:'js',  path:'../common/layout_fix.js'},
+      {type:'js',  path:'../common/ui_rescue.js'}
+    ];
+    const st = document.getElementById('status');
+    const log = (m)=>{ st.textContent = m+'\\n'+st.textContent; };
+
+    // klik-probe: als overlays/capture blokkeren, zien we dat hier
+    function clickProbeOk(){
+      return new Promise((resolve)=>{
+        const btn = document.createElement('button');
+        btn.textContent='probe';
+        btn.style.position='fixed'; btn.style.left='-9999px'; btn.style.top='-9999px';
+        document.body.appendChild(btn);
+        let got=false;
+        btn.addEventListener('click', ()=>{ got=true; }, {once:true});
+        // synth click
+        try{ btn.click(); }catch(_){}
+        setTimeout(()=>{ btn.remove(); resolve(got); }, 50);
+      });
+    }
+
+    function loadOne(asset){
+      return new Promise((resolve)=>{
+        const url = new URL(asset.path, location.href).toString();
+        if (asset.type==='css'){
+          const el=document.createElement('link');
+          el.rel='stylesheet'; el.href=url;
+          el.onload=()=>resolve({ok:true}); el.onerror=()=>resolve({ok:false, why:'css load error', url});
+          document.head.appendChild(el);
+        }else{
+          const el=document.createElement('script');
+          el.src=url; el.async=false; el.defer=false;
+          el.onload=()=>resolve({ok:true}); el.onerror=()=>resolve({ok:false, why:'js load error', url});
+          document.head.appendChild(el);
+        }
+        log('→ laden: '+asset.type.toUpperCase()+' '+asset.path);
+      });
+    }
+
+    async function runBisect(){
+      document.getElementById('run').disabled = true;
+      log('Start bisect… (refresh = reset)');
+      for (const a of ASSETS){
+        const res = await loadOne(a);
+        if (!res.ok){ log('❌ fout bij laden: '+(res.url||a.path)+' — '+res.why); window.__KGB_BAD_ASSET__=a; break; }
+        const ok = await clickProbeOk();
+        if (!ok){ log('❌ klikken blokkeert na: '+a.path); window.__KGB_BAD_ASSET__=a; break; }
+        log('✅ ok: '+a.path);
+      }
+      if (!window.__KGB_BAD_ASSET__){
+        log('🎉 Alle common/* veilig — probleem zit dan in full/app zelf (zie HUD logs).');
+      } else {
+        log('🚩 Dader: '+window.__KGB_BAD_ASSET__.path);
+      }
+    }
+
+    document.getElementById('run').onclick = runBisect;
+
+    // “Promote fix” laat backend-script een patch toepassen (je klikt de knop; ik geef je het Terminal-commando)
+    document.getElementById('promote').onclick = ()=>{
+      const bad = window.__KGB_BAD_ASSET__;
+      if (!bad){ alert('Geen dader gevonden. Eerst bisect uitvoeren.'); return; }
+      alert('Kopieer en plak het patch-commando dat ik je zo geef in Terminal om de fix door te voeren op /full.');
+    };
+  })();
+  </script>
+</body>
+</html>
