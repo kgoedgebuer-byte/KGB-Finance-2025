@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="nl">
+<head>
+
+
+
+
+
+
+<script src="kgb_debug.js?v=1764839472" data-kgb-debug></script>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>KGB Finance 2025 — Budget</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#7c9cf5">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+<header class="bar">
+  <h1>💰 KGB Finance 2025 — Budget</h1>
+  <nav class="tabs">
+    <button data-tab="dashboard" class="tab active">Dashboard</button>
+    <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="theme" class="tab">Thema</button>
+    <button data-tab="io" class="tab">Export / Import</button>
+  </nav>
+</header>
+
+<main>
+  <section id="dashboard" class="panel active">
+    <div class="cards">
+      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
+      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
+      <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
+    </div>
+
+    <div class="chartBar">
+      <div class="left">
+        <strong>Grafiek:</strong>
+        <label><input type="radio" name="ctype" value="line" checked> Lijn</label>
+        <label><input type="radio" name="ctype" value="bar"> Balk</label>
+        <label><input type="radio" name="ctype" value="pie"> Cirkel</label>
+      </div>
+      <div class="right">
+        <button id="btnDemo">Demo-data</button>
+        <button id="btnClear">Refresh</button>
+      </div>
+    </div>
+    <canvas id="saldoChart" height="160"></canvas>
+  </section>
+
+  <section id="budget" class="panel">
+    <h2>📋 Budget</h2>
+    <form id="addBudget" class="addForm">
+      <input id="b_date" type="date" required />
+      <input id="b_cat" type="text" placeholder="Categorie" required />
+      <input id="b_desc" type="text" placeholder="Omschrijving" />
+      <input id="b_inc" type="number" step="0.01" inputmode="decimal" placeholder="Inkomen">
+      <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+
+    <div class="tableWrap">
+      <table id="tblBudget" class="grid">
+        <thead>
+          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="theme" class="panel">
+    <h2>🎨 Thema</h2>
+    <div class="themeBox">
+      <label>Onderdeel:
+        <select id="themeTarget">
+          <option value="bg">Achtergrond</option>
+          <option value="card">Kaarten/Tabel</option>
+          <option value="acc">Accent/Knoppen</option>
+          <option value="grid">Rasterlijnen</option>
+          <option value="txt">Tekst</option>
+        </select>
+      </label>
+      <div id="swatches" class="swatches"></div>
+      <div class="sliders">
+        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
+        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
+      </div>
+      <div class="themeBtns">
+        <button id="themeReset">Reset</button>
+        <button id="themeSave">Opslaan</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="io" class="panel">
+    <h2>⬇️ Export / ⬆️ Import</h2>
+    <div class="io-actions">
+      <button id="btnExport">Export JSON</button>
+      <label class="fileLabel">Import JSON <input id="fileImport" type="file" accept="application/json"></label>
+      <button id="btnReset" class="danger">Reset (alles wissen)</button>
+    </div>
+    <p class="muted">PWA – werkt offline na 1× laden.</p>
+  </section>
+</main>
+
+<footer><small>© KGB Finance 2025</small></footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
+}
+</script>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+
+
+
+
+
+
+</body>
+</html>
