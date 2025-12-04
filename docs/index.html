@@ -1,49 +1,46 @@
-<head><script id="kgb-base-fix">(function(){
-  try{
-    var p = location.pathname.replace(/[^/]+$/, '');
-    document.write('<base href="'+ p.replace(/\/+$/,'/') +'">');
-  }catch(e){}
-})();</script>
-<script id="kgb-fetch-shim">
-(function(){
-  if (window.__KGB_FETCH_SHIM__) return; window.__KGB_FETCH_SHIM__=true;
-  const isDataUrl = (u)=>{ try{ const x = typeof u==='string'? u : (u&&u.url)||''; return /\/data\//.test(x) || /(^|[("'`])\.\/data\//.test(x); }catch(_){ return false; } };
-  const ok = (text)=> new Response(new Blob([text], {type:'application/json'}), {status:200, headers:{'Content-Type':'application/json'}});
-  // fetch()
-  const origFetch = window.fetch;
-  if (origFetch) {
-    window.fetch = function(input, init){
-      return origFetch(input, init).then(resp=>{
-        if (!resp.ok && isDataUrl(resp.url)) { console.warn('KGB shim: vervang fout', resp.url, resp.status); return ok('{}'); }
-        return resp;
-      }).catch(err=>{
-        const u = (typeof input==='string'? input : (input&&input.url)) || '';
-        if (isDataUrl(u)) { console.warn('KGB shim: netwerkfout', u, err); return ok('{}'); }
-        throw err;
-      });
-    };
-  }
-  // XMLHttpRequest()
-  (function(){
-    const X = window.XMLHttpRequest; if (!X) return;
-    const P = X.prototype, open = P.open, send = P.send;
-    P.open = function(m,u){ this.__kgb_url = u; return open.apply(this, arguments); };
-    P.send = function(){
-      if (isDataUrl(this.__kgb_url)) {
-        this.addEventListener('load', ()=>{ if (this.status>=400) { try{ Object.defineProperty(this,'status',{value:200}); }catch(_){ } this.responseText='{}'; }});
-        this.addEventListener('error', ()=>{ try{
-          this.responseText='{}'; this.readyState=4; try{ Object.defineProperty(this,'status',{value:200}); }catch(_){}
-          this.dispatchEvent(new Event('readystatechange')); this.dispatchEvent(new Event('load'));
-        }catch(_){ }});
-      }
-      return send.apply(this, arguments);
-    };
-  })();
-  console.log('KGB fetch-shim actief');
-})();
-</script>
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>KGB Finance 2025 — Start</title>
+  <meta name="robots" content="noindex,nofollow"/>
+  <style>
+    :root{--b:#111;--bg:#fafafa;--fg:#222;--ok:#0a0;--bad:#b00}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,Segoe UI,Arial,sans-serif;display:flex;align-items:center;justify-content:center}
+    .card{background:#fff;border:1px solid #e5e5e5;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:22px;max-width:680px;width:92%}
+    h1{margin:0 0 6px;font-size:22px}p{margin:6px 0 14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 6px}
+    a.btn{display:inline-block;padding:10px 12px;border-radius:12px;border:1px solid var(--b);text-decoration:none;color:#fff;background:#111}
+    a.btn.secondary{background:#fff;color:#111}
+    .status{margin-top:10px;font-size:14px}
+    .ok{color:var(--ok)}.bad{color:var(--bad)}
+    code{background:#f4f4f4;padding:2px 6px;border-radius:6px}
+  </style>
 </head>
-<!doctype html><meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=./full/">
-<title>KGB Finance 2025</title>
-<p>Redirect… <a href="./full/">Klik hier</a></p>
+<body>
+  <div class="card">
+    <h1>KGB Finance 2025 — Start</h1>
+    <p>Kies een app. Zie je “laden en blijven hangen”? Open <b>Healthcheck</b> en volg de stappen.</p>
+    <div class="row">
+      <a class="btn" href="./full/">Open Full</a>
+      <a class="btn" href="./budget/">Open Budget</a>
+      <a class="btn secondary" href="./health.html">Healthcheck</a>
+    </div>
+    <div id="status" class="status">Status aan het controleren…</div>
+    <script>
+      (async function(){
+        const S = document.getElementById('status');
+        function line(t, ok){ const cls = ok?'ok':'bad'; S.insertAdjacentHTML('beforeend', `<div class="${cls}">• ${t}</div>`); }
+        S.textContent = '';
+        // Full/Budget reachable
+        try { const r = await fetch('full/', {cache:'no-store'}); line('Full: '+(r.ok?'ok':'HTTP '+r.status), r.ok); } catch{ line('Full: netwerkfout', false); }
+        try { const r = await fetch('budget/', {cache:'no-store'}); line('Budget: '+(r.ok?'ok':'HTTP '+r.status), r.ok); } catch{ line('Budget: netwerkfout', false); }
+        // settings.json present?
+        try { const r = await fetch('data/settings.json', {cache:'no-store'}); line('data/settings.json: '+(r.ok?'gevonden':'HTTP '+r.status), r.ok); } catch{ line('data/settings.json: netwerkfout', false); }
+        S.insertAdjacentHTML('beforeend', '<div style="margin-top:8px"><small>Tip: harde herlaad — Chrome: ⌘⇧R, Safari: ⇧ + klik ⟲</small></div>');
+      })();
+    </script>
+  </div>
+</body>
+</html>
