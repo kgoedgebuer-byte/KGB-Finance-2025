@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><title>KGB Health</title>
+<style>
+body{font:14px/1.4 -apple-system,Segoe UI,Arial,sans-serif;padding:16px}
+.bad{color:#b00}.ok{color:#070}.box{border:1px solid #ddd;border-radius:8px;padding:12px;margin:10px 0}
+pre{white-space:pre-wrap;background:#f7f7f7;padding:8px;border-radius:6px;max-height:40vh;overflow:auto}
+</style>
+<h1>✅/❌ KGB Health</h1>
+<div id="out" class="box">Bezig met testen…</div>
+<script>
+(async function(){
+  const base = location.origin + '/KGB-Finance-2025';
+  const targets = [
+    {name:'Full',   url: base+'/full/index.html',   probe:[base+'/full/index.html', base+'/full/index_orig.html']},
+    {name:'Budget', url: base+'/budget/index.html', probe:[base+'/budget/index.html', base+'/budget/index_orig.html']},
+  ];
+  const out=document.getElementById('out');
+  function line(html){ out.innerHTML += '<div>'+html+'</div>'; }
+  out.innerHTML='';
+  for (const t of targets){
+    line('<b>'+t.name+'</b>');
+    // haal HTML op en check basisdingen
+    try{
+      const html = await (await fetch(t.url, {cache:'no-store'})).text();
+      const ok = /KGB Finance 2025/i.test(html);
+      line('• HTML: ' + (ok?'<span class=ok>OK</span>':'<span class=bad>Geen herkenbare inhoud</span>'));
+    }catch(e){ line('• HTML: <span class=bad>FOUT</span> '+e); }
+
+    // kijk of /data bestaat
+    try{
+      const r = await fetch(base+'/data/', {cache:'no-store'});
+      line('• /data/ map: ' + (r.ok?'<span class=ok>vindbaar</span>':'<span class=bad>niet gepubliceerd</span>'));
+    }catch(e){ line('• /data/ map: <span class=bad>fout</span>'); }
+
+    // bekende data-bestanden (pas aan indien nodig)
+    const files=['data.json','settings.json'];
+    for (const f of files){
+      try{
+        const r = await fetch(base+'/full/data/'+f, {cache:'no-store'});
+        line('• full/data/'+f+': ' + (r.ok?'<span class=ok>'+r.status+'</span>':'<span class=bad>'+r.status+'</span>'));
+      }catch(_){ line('• full/data/'+f+': <span class=bad>fout</span>'); }
+      try{
+        const r = await fetch(base+'/budget/data/'+f, {cache:'no-store'});
+        line('• budget/data/'+f+': ' + (r.ok?'<span class=ok>'+r.status+'</span>':'<span class=bad>'+r.status+'</span>'));
+      }catch(_){ line('• budget/data/'+f+': <span class=bad>fout</span>'); }
+    }
+    line('<hr>');
+  }
+})();
+</script>
