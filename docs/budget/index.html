@@ -133,8 +133,12 @@ if ('serviceWorker' in navigator) {
 
 
 
-<style id="kgb-fix-style-v3.1">
-  html, body, #root, #app, main { pointer-events:auto !important; overflow:auto !important; }
+
+
+
+
+<style id="kgb-fix-style-v3.2">
+  html, body, #root, #app, main { overflow:auto !important; pointer-events:auto !important; }
   a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex],canvas {
     pointer-events:auto !important; touch-action:auto !important;
   }
@@ -143,179 +147,97 @@ if ('serviceWorker' in navigator) {
   }
   * { -webkit-user-select:text !important; user-select:text !important; }
 </style>
-<script id="kgb-fix-clicks-v3.1">
+<script id="kgb-fix-clicks-v3.2">
 (function(){
-  if (window.__kgb_fix_v31) return; window.__kgb_fix_v31 = true;
+  if (window.__kgb_fix_v32) return; window.__kgb_fix_v32 = true;
 
-  // 0) Herstel echte SW.register als eerder gestubbed
-  try {
-    if ('serviceWorker' in navigator) {
-      const sw = navigator.serviceWorker;
-      const proto = Object.getPrototypeOf(sw);
-      if (proto && proto.register && sw.register !== proto.register) {
-        sw.register = proto.register.bind(sw);
-        console.log('KGB v3.1: SW.register hersteld');
-      }
-    }
-  } catch (e) {}
+  function safeSWClean(){
+    try { if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{}); } } catch(e){}
+    try { if (window.caches && caches.keys) { caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).catch(()=>{}); } } catch(e){}
+  }
 
   function unfreeze(){
-    try {
+    try{
       document.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
       document.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(e){} });
       document.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
-    } catch(e){}
+    }catch(e){}
   }
 
-  function markOverlays(root){
+  function markOverlays(){
     try{
-      const scope = root || document;
-      const vw = Math.max(1, innerWidth||1), vh = Math.max(1, innerHeight||1), areaV = vw*vh;
-      const all = (scope === document ? document.body : scope).querySelectorAll ? (scope === document ? document.body.querySelectorAll('*') : scope.querySelectorAll('*')) : [];
-      const limit = Math.min(all.length, 5000);
-      for (let i=0;i<limit;i++){
-        const el = all[i]; if (!el) break;
-        if (el===document.body || el===document.documentElement) continue;
-        const cs = getComputedStyle(el); if (!cs) continue;
-        if (cs.visibility==='hidden' || cs.display==='none') continue;
-        const r = el.getBoundingClientRect?.(); if (!r || r.width<=0 || r.height<=0) continue;
-        const zi = parseInt(cs.zIndex||'0')||0;
-        const area = r.width*r.height, ratio = area/areaV;
-        const looksLikeOverlay =
-          ratio > 0.75 ||
-          ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
-          /(backdrop|overlay|modal|scrim|blocker)/i.test(el.className||'') ||
-          (el.tagName==='IFRAME' && ratio>0.50);
-        if (looksLikeOverlay){
-          el.classList.add('kgb-overlay');
-          if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
+      const vw = Math.max(1, innerWidth||1), vh = Math.max(1, innerHeight||1);
+      const areaV = vw*vh;
+
+      // 1) Via points (centrum + randen)
+      const pts = [[vw/2,vh/2],[6,6],[vw-6,6],[6,vh-6],[vw-6,vh-6],[vw/2,6],[vw/2,vh-6],[6,vh/2],[vw-6,vh/2]];
+      const seen = new Set(), cands = [];
+      for (const [x,y] of pts){
+        const stack = document.elementsFromPoint ? document.elementsFromPoint(x,y) : [];
+        for (const el of stack){
+          if (!el || seen.has(el)) continue; seen.add(el);
+          const cs = getComputedStyle(el); if (!cs) continue;
+          const r = el.getBoundingClientRect?.(); if (!r) continue;
+          const area = Math.max(0,r.width)*Math.max(0,r.height), ratio = area/areaV;
+          const zi = parseInt(cs.zIndex||'0')||0;
+          const looks =
+            ratio>0.70 || ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
+            /(backdrop|overlay|modal|scrim|blocker)/i.test(el.className||'') ||
+            (el.tagName==='IFRAME' && ratio>0.50);
+          if (looks) cands.push(el);
         }
       }
-    }catch(e){}
-  }
 
-  // Shadow DOM support: inspecteer bestaande shadowRoots + toekomstige
-  (function hookShadow(){
-    try{
-      const seen = new WeakSet();
-      function visit(node){
+      // 2) Snelle scan (limiet 3000 elementen) om grootste fixed/absolute mee te nemen
+      try{
+        const all = document.body ? document.body.getElementsByTagName('*') : [];
+        const max = Math.min(all.length, 3000);
+        let best=null, bestScore=0;
+        for (let i=0;i<max;i++){
+          const el = all[i]; if (!el) break;
+          const cs = getComputedStyle(el); if (!cs) continue;
+          if (!(cs.position==='fixed' || cs.position==='absolute')) continue;
+          const r = el.getBoundingClientRect?.(); if (!r) continue;
+          const zi = parseInt(cs.zIndex||'0')||0;
+          const score = Math.max(0,r.width)*Math.max(0,r.height) * (zi+1);
+          if (score>bestScore){ best=el; bestScore=score; }
+        }
+        if (best) cands.push(best);
+      }catch(e){}
+
+      // 3) Neutraliseer kandidaten
+      const uniq = []; const seen2 = new Set();
+      for (const el of cands){ if (!seen2.has(el)) { uniq.push(el); seen2.add(el); } }
+      for (const el of uniq){
         try{
-          if (!node || seen.has(node)) return;
-          seen.add(node);
-          if (node.shadowRoot) {
-            markOverlays(node.shadowRoot);
-            node.shadowRoot.addEventListener('click', onCapture, true);
-            node.shadowRoot.addEventListener('pointerup', onCapture, true);
-            node.shadowRoot.addEventListener('mouseup', onCapture, true);
-            node.shadowRoot.addEventListener('touchend', onCapture, true);
-          }
-        }catch(e){}
+          el.classList.add('kgb-overlay');
+          if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
+          el.style.pointerEvents='none';
+          el.style.background='transparent';
+          el.removeAttribute('inert');
+        }catch(_){}
       }
-      const orig = Element.prototype.attachShadow;
-      if (orig) {
-        Element.prototype.attachShadow = function(init){
-          const sr = orig.call(this, init);
-          try{
-            markOverlays(sr);
-            sr.addEventListener('click', onCapture, true);
-            sr.addEventListener('pointerup', onCapture, true);
-            sr.addEventListener('mouseup', onCapture, true);
-            sr.addEventListener('touchend', onCapture, true);
-          }catch(e){}
-          return sr;
-        };
-      }
-      (document.querySelectorAll('*')||[]).forEach(visit);
     }catch(e){}
-  })();
-
-  // Click-proxy helpers
-  function peelTargetAt(x,y){
-    const undo = [];
-    function tempHide(el){
-      const prev = { el, pe: el.style.pointerEvents, vis: el.style.visibility, disp: el.style.display };
-      el.style.pointerEvents = 'none'; el.style.visibility = 'hidden'; el.style.display = 'contents';
-      undo.push(()=>{ el.style.pointerEvents = prev.pe; el.style.visibility = prev.vis; el.style.display = prev.disp; });
-    }
-    try{
-      const stack = document.elementsFromPoint ? document.elementsFromPoint(x,y) : [];
-      for (const el of stack){
-        if (!el || el===document.documentElement || el===document.body) continue;
-        const isOverlay = el.classList.contains('kgb-overlay') ||
-                          /(backdrop|overlay|modal|scrim|blocker)/i.test(el.className||'');
-        if (isOverlay) tempHide(el);
-      }
-      let target = document.elementFromPoint(x,y);
-      undo.forEach(fn=>fn());
-      return target && target !== document.documentElement && target !== document.body ? target : null;
-    }catch(e){ undo.forEach(fn=>fn()); return null; }
   }
 
-  function makeMouseInit(e){ // veilig voor composed/shadow
-    const t = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : null);
-    const cx = ('clientX' in e && e.clientX!=null) ? e.clientX : (t ? t.clientX : 0);
-    const cy = ('clientY' in e && e.clientY!=null) ? e.clientY : (t ? t.clientY : 0);
-    return {
-      bubbles:true, cancelable:true, composed:true, view:window,
-      clientX:cx, clientY:cy, screenX:cx, screenY:cy,
-      ctrlKey:e.ctrlKey||false, shiftKey:e.shiftKey||false, altKey:e.altKey||false, metaKey:e.metaKey||false,
-      button: e.button!=null ? e.button : 0, buttons: e.buttons!=null ? e.buttons : 0
-    };
-  }
-  function redispatch(toEl, kind, e){
-    try{
-      let ev;
-      if (kind.startsWith('pointer')) {
-        ev = new PointerEvent(kind, Object.assign({pointerId:1,pointerType:'mouse'}, makeMouseInit(e)));
-      } else if (kind.startsWith('mouse')) {
-        ev = new MouseEvent(kind, makeMouseInit(e));
-      } else if (kind.startsWith('touch')) {
-        const touch = new Touch({ identifier: Date.now(), target: toEl, clientX: makeMouseInit(e).clientX, clientY: makeMouseInit(e).clientY });
-        ev = new TouchEvent(kind, { bubbles:true, cancelable:true, composed:true, changedTouches:[touch] });
-      } else {
-        ev = new Event(kind, {bubbles:true, cancelable:true, composed:true});
-      }
-      toEl.dispatchEvent(ev);
-      if (kind==='click' && typeof toEl.click==='function') toEl.click();
-    }catch(_){}
-  }
-
-  function onCapture(e){
-    const t = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : null);
-    const x = ('clientX' in e && e.clientX!=null) ? e.clientX : (t ? t.clientX : 0);
-    const y = ('clientY' in e && e.clientY!=null) ? e.clientY : (t ? t.clientY : 0);
-    const under = peelTargetAt(x,y);
-    if (!under || under===e.target) return;
-    try{ e.stopImmediatePropagation(); e.preventDefault(); }catch(_){}
-    const seq =
-      e.type === 'pointerup' ? ['pointerdown','pointerup','click'] :
-      e.type === 'mouseup'    ? ['mousedown','mouseup','click'] :
-      e.type === 'touchend'   ? ['touchstart','touchend','click'] : ['click'];
-    for (const k of seq) redispatch(under, k, e);
-  }
-
-  function runAll(){ unfreeze(); markOverlays(document); }
+  function runAll(){ unfreeze(); markOverlays(); }
   function schedule(){
+    safeSWClean();
     runAll();
-    setTimeout(runAll, 100);
-    setTimeout(runAll, 500);
-    setTimeout(runAll, 1500);
+    setTimeout(runAll, 120);
+    setTimeout(runAll, 600);
+    setTimeout(runAll, 1600);
+    let n=0; const t=setInterval(()=>{ runAll(); if(++n>6) clearInterval(t); }, 700);
   }
 
   window.addEventListener('load', schedule, {once:true});
   document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) schedule(); });
   window.addEventListener('resize', ()=> schedule(), {passive:true});
 
-  try {
+  try{
     const mo = new MutationObserver(()=> runAll());
     mo.observe(document.documentElement||document.body, {subtree:true, childList:true, attributes:true});
-  } catch(e){}
-
-  // Capture top-level + (via hookShadow) binnen shadowRoots
-  window.addEventListener('click', onCapture, true);
-  window.addEventListener('pointerup', onCapture, true);
-  window.addEventListener('mouseup', onCapture, true);
-  window.addEventListener('touchend', onCapture, true);
+  }catch(e){}
 })();
 </script>
 
