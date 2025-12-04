@@ -261,5 +261,163 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+
+<style id="kgb-fix-style-v2">
+  html, body { overflow:auto !important; }
+  html, body, #root, #app, main, .app { pointer-events:auto !important; }
+  /* Enable echte UI */
+  a, button, input, select, textarea, summary,
+  [role="button"], [role="link"], [role="tab"],
+  [onclick], [tabindex], .btn, .button, .tab, .nav, canvas {
+    pointer-events:auto !important;
+    touch-action:auto !important;
+  }
+  /* Typische blockers */
+  .kgb-blocker, .overlay, .backdrop, .modal, [aria-modal="true"] {
+    pointer-events:none !important; background:transparent !important;
+  }
+  * { -webkit-user-select:text !important; user-select:text !important; }
+</style>
+<script id="kgb-fix-clicks-v2">
+(function(){
+  if (window.__kgb_fix_v2) return; window.__kgb_fix_v2 = true;
+
+  // SW uitschakelen + caches leeg
+  if ('serviceWorker' in navigator) {
+    try { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())); } catch(e){}
+    try {
+      const orig = navigator.serviceWorker.register;
+      navigator.serviceWorker.register = function(){ console.log('KGB v2: SW-register geblokkeerd'); return Promise.resolve({unregister:()=>Promise.resolve(true)}); };
+    } catch(e){}
+  }
+  try { if (window.caches && caches.keys) caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))); } catch(e){}
+
+  // Dialogs dicht + aria modalities weg
+  function closeDialogs(){
+    try{
+      document.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.open && d.close(); }catch(e){} });
+      document.querySelectorAll('[aria-modal="true"]').forEach(el=>{ el.removeAttribute('aria-modal'); });
+    }catch(e){}
+  }
+
+  // Heuristiek om overlays te neutraliseren (incl. iframes)
+  function detectOverlays(){
+    const vw = Math.max(1, window.innerWidth || 1);
+    const vh = Math.max(1, window.innerHeight || 1);
+    const pts = [
+      [vw/2, vh/2],[5,5],[vw-5,5],[5,vh-5],[vw-5,vh-5],
+      [vw/2,5],[vw/2,vh-5],[5,vh/2],[vw-5,vh/2]
+    ];
+    const seen = new Set(); const cands = [];
+    for (const [x,y] of pts){
+      const stack = document.elementsFromPoint ? document.elementsFromPoint(x,y) : [];
+      for (const el of stack){
+        if (!el || seen.has(el)) continue; seen.add(el);
+        try{
+          const cs = getComputedStyle(el);
+          if (!cs) continue;
+          const r = el.getBoundingClientRect?.(); if (!r) continue;
+          const zi = parseInt(cs.zIndex||"0")||0;
+          const fixedish = cs.position === 'fixed' || cs.position === 'absolute' || cs.position === 'sticky';
+          const area = Math.max(0, r.width) * Math.max(0, r.height);
+          const ratio = area / (vw*vh);
+          if (
+            fixedish &&
+            (ratio > 0.40 || (r.top<=1 && r.left<=1 && r.width>=vw*0.95 && r.height>=vh*0.80)) &&
+            zi >= 10 &&
+            el !== document.documentElement && el !== document.body
+          ){
+            cands.push([el, zi, ratio]);
+          }
+        }catch(e){}
+      }
+    }
+    // Pak ook de grootste fixed/absolute in het document
+    try{
+      let best = null, bestScore = 0;
+      const all = document.querySelectorAll('body *');
+      const limit = Math.min(all.length, 4000); // safeguard
+      for (let i=0;i<limit;i++){
+        const el = all[i]; if (!el) break;
+        const cs = getComputedStyle(el); if (!cs) continue;
+        if (!(cs.position==='fixed' || cs.position==='absolute')) continue;
+        const r = el.getBoundingClientRect?.(); if (!r) continue;
+        const zi = parseInt(cs.zIndex||"0")||0;
+        const area = Math.max(0, r.width) * Math.max(0, r.height);
+        const score = area * (zi+1);
+        if (score > bestScore) { best = el; bestScore = score; }
+      }
+      if (best) cands.push([best, parseInt(getComputedStyle(best).zIndex||"0")||0, 1]);
+    }catch(e){}
+
+    // Normaliseer kandidaten en filter nested dupes
+    const uniq = [];
+    for (const [el,zi,ra] of cands){
+      if (!uniq.some(([e])=> e===el)) uniq.push([el,zi,ra]);
+    }
+
+    // Neutraliseer
+    for (const [el, zi, ra] of uniq){
+      try{
+        if (el.tagName === 'IFRAME'){
+          el.dataset.kgbBlocked = '1';
+          el.style.pointerEvents = 'none'; // waarom: iframe onderschept altijd
+          el.style.visibility = 'hidden';
+          console.log('KGB v2: iframe overlay geneutraliseerd', zi, ra.toFixed(2));
+          continue;
+        }
+        el.classList.add('kgb-blocker');
+        // display:contents behoudt layout maar verwijdert box voor pointer-events
+        try { el.style.display = 'contents'; } catch(_){}
+        el.style.pointerEvents = 'none';
+        el.style.background = 'transparent';
+        el.style.backdropFilter = 'none';
+        el.style.filter = 'none';
+        el.removeAttribute('inert');
+        console.log('KGB v2: overlay uitgeschakeld', el.tagName, 'z=', zi, 'ratio=', ra.toFixed(2));
+      }catch(e){}
+    }
+  }
+
+  // Herstel interactie op UI-elementen
+  function ensureInteractive(){
+    try{
+      const sel = 'a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex],canvas';
+      document.querySelectorAll(sel).forEach(el=>{
+        const cs = getComputedStyle(el);
+        if (cs.pointerEvents === 'none') el.style.pointerEvents = 'auto';
+      });
+    }catch(e){}
+  }
+
+  function runAll(){
+    closeDialogs();
+    detectOverlays();
+    ensureInteractive();
+  }
+
+  // Schedules
+  const schedule = () => {
+    runAll();
+    setTimeout(runAll, 120);
+    setTimeout(runAll, 500);
+    setTimeout(runAll, 1500);
+    let n=0; const t=setInterval(()=>{ runAll(); if(++n>6) clearInterval(t); }, 600);
+  };
+
+  window.addEventListener('load', schedule, {once:true});
+  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) schedule(); });
+  window.addEventListener('resize', ()=> schedule(), {passive:true});
+
+  try{
+    const mo = new MutationObserver(()=> runAll());
+    mo.observe(document.documentElement || document.body, {subtree:true, childList:true, attributes:true});
+  }catch(e){}
+
+  // Esc om opnieuw te proberen
+  document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') schedule(); }, {passive:true});
+})();
+</script>
+
 </body>
 </html>
