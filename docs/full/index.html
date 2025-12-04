@@ -14,6 +14,35 @@
   <link rel="stylesheet" href="../common/sync_embed.css">
   <link rel="stylesheet" href="../common/ui_fix.css">
   <meta name="apple-mobile-web-app-capable" content="yes">
+
+<script id="kgb-debug">
+(function(){
+  if (window.__KGB_DEBUG) return; window.__KGB_DEBUG = true;
+  function show(msg){
+    try{
+      var box = document.getElementById('kgb-debug-box');
+      if(!box){
+        box = document.createElement('div');
+        box.id = 'kgb-debug-box';
+        box.style.cssText = 'position:fixed;top:8px;left:8px;z-index:2147483647;background:#fff3f3;color:#900;border:1px solid #900;padding:8px 10px;border-radius:8px;font:13px/1.3 -apple-system,Segoe UI,Arial,sans-serif;max-width:80vw;max-height:40vh;overflow:auto;white-space:pre-wrap;';
+        document.body.appendChild(box);
+      }
+      box.textContent = String(msg);
+    }catch(e){}
+    alert('Fout: ' + String(msg));
+  }
+  window.addEventListener('error', function(e){
+    var where = (e.filename||'') + (e.lineno?(':'+e.lineno):'');
+    show((e.message||'Error') + (where?('\n@ '+where):''));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var r = e.reason;
+    var msg = (r && r.message) ? r.message : String(r);
+    show('Promise: ' + msg);
+  });
+})();
+</script>
+
 </head>
 <body>
 <header class="bar">
