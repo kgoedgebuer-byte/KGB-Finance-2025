@@ -1,67 +1,90 @@
-
-
-
-<link rel="stylesheet" href="../common/panic.css?v=1764868078"><!doctype html>
-<meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=../budget/">
-<title>KGB Full → Budget</title>
-<p>Doorsturen naar <a href="../budget/">Budget</a>…</p>
-
-<style id="kgb-nood-style">
-  #kgb-nood{position:fixed !important; right:14px !important; bottom:14px !important;
-    z-index:2147483647 !important; background:#0b132b !important; color:#e6fff2 !important;
-    border:1px solid #1bd97b !important; border-radius:12px !important; padding:10px 12px !important;
-    font:12px/1.2 -apple-system,Segoe UI,Arial,sans-serif !important; box-shadow:0 8px 28px rgba(0,0,0,.35) !important}
-  #kgb-nood button{margin-right:6px !important; padding:6px 10px !important; border-radius:8px !important;
-    border:1px solid #1bd97b !important; background:#0f5132 !important; color:#e6fff2 !important; cursor:pointer !important}
-  #kgb-nood button.secondary{background:#021a12 !important}
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>KGB — Safe loader</title>
+<style>
+  :root{--bg:#0b132b;--fg:#e6fff2;--acc:#1bd97b}
+  html,body{height:100%;margin:0;background:#f5f7fb}
+  .wrap{max-width:920px;margin:8vh auto;background:#fff;border:1px solid #e6e8ef;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.08)}
+  .hd{padding:12px 16px;border-bottom:1px solid #eef1f5;font:14px/1.3 -apple-system,Segoe UI,Arial,sans-serif;color:#223}
+  .bd{padding:14px 16px;font:14px/1.5 -apple-system,Segoe UI,Arial,sans-serif}
+  .ok{color:#0a0}.bad{color:#b00}
+  pre{background:#111;color:#0f0;padding:10px;border-radius:10px;white-space:pre-wrap;overflow:auto}
+  /* altijd-zichtbare noodbalk */
+  #kgb-nood{position:fixed;right:14px;bottom:14px;z-index:2147483647;background:var(--bg);color:var(--fg);
+    border:1px solid var(--acc);border-radius:12px;padding:10px 12px;font:12px/1.2 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+  #kgb-nood button{margin-right:6px;padding:6px 10px;border-radius:8px;border:1px solid var(--acc);background:#0f5132;color:#e6fff2;cursor:pointer}
+  #kgb-nood button.secondary{background:#021a12}
 </style>
-<script id="kgb-nood-bar">
-(function(){
-  if (window.__KGB_NOODBAR__) return; window.__KGB_NOODBAR__=1;
+<div class="wrap">
+  <div class="hd">KGB — Safe loader</div>
+  <div class="bd">
+    <div id="st">Bezig met laden…</div>
+    <pre id="log" hidden></pre>
+  </div>
+</div>
 
-  function findPanicLink(){
-    const links=[...document.querySelectorAll('link[rel="stylesheet"]')];
-    return links.find(l=>/\/common\/panic\.css\b/.test(l.getAttribute('href')||''));
+<!-- Noodbalk (wordt ook in de app zelf geïnjecteerd) -->
+<div id="kgb-nood" hidden>
+  <button id="nb-toggle">Noodmodus uit</button>
+  <button id="nb-fix" class="secondary">Herstel klikken</button>
+</div>
+
+<script>
+(async function(){
+  const st = document.getElementById('st');
+  const log = (...a)=>{ const L=document.getElementById('log'); L.hidden=false; L.textContent = a.join(' ')+'\\n'+L.textContent; };
+
+  // 1) haal app-html op
+  let txt = '';
+  try{
+    const r = await fetch('index_app.html?v=' + Date.now(), {cache:'no-store'});
+    if(!r.ok){ st.innerHTML = '<span class="bad">Fout '+r.status+'</span>'; log('HTTP', r.status, r.statusText); return; }
+    txt = await r.text();
+    st.innerHTML = '<span class="ok">App gevonden, injecteren…</span>';
+  }catch(e){
+    st.innerHTML = '<span class="bad">Netwerkfout</span>'; log(e.message||e); return;
   }
 
+  // 2) injecteer panic.css + noodbalk bovenaan <head>
+  const INJECT = `
+<link id="kgb-panic-link" rel="stylesheet" href="../common/panic.css?v=${Date.now()}">
+<style id="kgb-unlock-mini">
+  html,body,#root,#app,main{pointer-events:auto!important}
+  [inert]{pointer-events:auto!important}
+</style>
+<script id="kgb-noodbar-inline">
+(function(){
   function unlock(doc){
     try{
       doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('dialog[open]').forEach(d=>{try{d.close();}catch(_){}})
       doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
       (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
       const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){ } });
+      doc.querySelectorAll(sel).forEach(el=>{try{el.disabled=false;el.removeAttribute('disabled');const cs=getComputedStyle(el);if(cs.pointerEvents==='none')el.style.pointerEvents='auto';}catch(_){}})
     }catch(_){}
   }
+  window.__KGB_UNLOCK__ = unlock; // export
+})();
+</script>`;
+  const withHead = txt.replace(/<head\b[^>]*>/i, m => m + '\\n' + INJECT);
 
-  function togglePanic(){
-    const link=findPanicLink();
-    if(!link){ alert('panic.css niet gevonden'); return; }
-    // Toggle via disabled attribuut
-    link.disabled = !link.disabled;
-    btn1.textContent = link.disabled ? 'Noodmodus aan' : 'Noodmodus uit';
-    setTimeout(()=>unlock(document), 50);
-  }
+  // 3) schrijf de app naar document.body (vervangt huidig)
+  document.open(); document.write(withHead); document.close();
 
-  // UI
-  const bar=document.createElement('div');
-  bar.id='kgb-nood';
-  const link=findPanicLink();
-  const btn1=document.createElement('button');
-  btn1.textContent = (link && !link.disabled) ? 'Noodmodus uit' : 'Noodmodus aan';
-  btn1.onclick=togglePanic;
+  // 4) toon noodbalk (van loader) en koppel aan de app
+  const nb=document.getElementById('kgb-nood');
+  nb.hidden=false;
+  const panicLink = document.getElementById('kgb-panic-link');
+  const btnT = document.getElementById('nb-toggle');
+  const btnF = document.getElementById('nb-fix');
 
-  const btn2=document.createElement('button');
-  btn2.className='secondary';
-  btn2.textContent='Herstel klikken';
-  btn2.onclick=()=>{ unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500); };
+  btnT.onclick = ()=>{ panicLink.disabled = !panicLink.disabled; btnT.textContent = panicLink.disabled ? 'Noodmodus aan' : 'Noodmodus uit'; };
+  btnF.onclick = ()=>{ try{ window.__KGB_UNLOCK__ && window.__KGB_UNLOCK__(document); setTimeout(()=>window.__KGB_UNLOCK__ && window.__KGB_UNLOCK__(document),150); }catch(e){} };
 
-  bar.appendChild(btn1); bar.appendChild(btn2);
-  document.body.appendChild(bar);
-
-  // kleine auto-ontgrendeling bij start
-  unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500);
+  // kleine auto-fix
+  try{ window.__KGB_UNLOCK__ && window.__KGB_UNLOCK__(document); setTimeout(()=>window.__KGB_UNLOCK__ && window.__KGB_UNLOCK__(document),200); }catch(_){}
 })();
 </script>
