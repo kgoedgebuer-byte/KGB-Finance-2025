@@ -1,56 +1,5 @@
 <!doctype html>
-<html lang="nl">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KGB — Diagnose</title>
-<style>
-  html,body{height:100%;margin:0;background:#fafafa;font:16px/1.5 -apple-system,Segoe UI,Arial,sans-serif;color:#222}
-  .card{max-width:760px;margin:6vh auto;background:#fff;border:1px solid #eee;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:20px}
-  h1{margin:0 0 6px;font-size:22px}
-  .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
-  button{padding:10px 12px;border-radius:12px;border:1px solid #222;background:#111;color:#fff;cursor:pointer}
-  button.secondary{background:#fff;color:#111}
-  pre{background:#111;color:#0f0;padding:10px;border-radius:12px;max-height:40vh;overflow:auto;white-space:pre-wrap}
-  .ok{color:#0a0}.bad{color:#b00}
-</style>
-<div class="card">
-  <h1>✅ Diagnosepagina (pure HTML)</h1>
-  <p>Als je dit ziet, is de pagina **zelf** ok. Gebruik de knoppen hieronder.</p>
-  <div class="row">
-    <button id="open">Open echte app</button>
-    <button class="secondary" id="clear">Leeg SW & caches</button>
-    <button class="secondary" id="crash">Toon foutlog</button>
-  </div>
-  <div id="status"></div>
-  <pre id="log" hidden></pre>
-</div>
-<script>
-(function(){
-  const S = document.getElementById('status');
-  const L = document.getElementById('log');
-  const log = (...a)=>{ L.hidden=false; L.textContent = '['+new Date().toLocaleTimeString()+'] '+a.map(x=> (x&&x.stack)|| (x&&x.message)||String(x)).join(' ') + '\n' + L.textContent; };
-
-  // onerror + unhandled
-  window.addEventListener('error', e=>log('ERROR:', e.message,'@',e.filename+':'+e.lineno));
-  window.addEventListener('unhandledrejection', e=>log('PROMISE:', e.reason));
-
-  // snelle omgeving-info
-  S.innerHTML = '<div>Browser: '+navigator.userAgent+'</div>';
-
-  // SW/caches leeg
-  document.getElementById('clear').onclick = async ()=>{
-    try{ if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister().catch(()=>{}))); } }catch(_){}
-    try{ if(window.caches&&caches.keys){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(_){}
-    alert('Leeg. Open nu de echte app.');
-  };
-
-  // open echte app (de vorige index is bewaard als index_app.html)
-  document.getElementById('open').onclick = ()=>{
-    location.href = 'index_app.html?v=' + Date.now();
-  };
-
-  // toon log
-  document.getElementById('crash').onclick = ()=>{ L.hidden=false; };
-
-})();
-</script>
+<meta http-equiv="refresh" content="0; url=../budget/">
+<title>KGB Full → Budget</title>
+<p>Doorsturen naar <a href="../budget/">Budget</a>…</p>
