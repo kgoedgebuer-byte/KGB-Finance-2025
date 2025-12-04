@@ -1,49 +1,78 @@
-<!doctype html><meta charset="utf-8"><title>KGB Health</title>
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KGB — Healthcheck</title>
 <style>
-body{font:14px/1.4 -apple-system,Segoe UI,Arial,sans-serif;padding:16px}
-.bad{color:#b00}.ok{color:#070}.box{border:1px solid #ddd;border-radius:8px;padding:12px;margin:10px 0}
-pre{white-space:pre-wrap;background:#f7f7f7;padding:8px;border-radius:6px;max-height:40vh;overflow:auto}
+  body{font:16px/1.5 -apple-system,Segoe UI,Arial,sans-serif;margin:20px}
+  h1{font-size:22px;margin:0 0 12px}
+  .tip{margin:6px 0 16px;color:#555}
+  ul{list-style:none;padding:0;margin:0}
+  li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #ddd;border-radius:10px;margin-bottom:8px}
+  .ok{color:#0a0}
+  .fail{color:#b00}
+  small{color:#777}
+  button,a.btn{display:inline-block;margin-right:8px;padding:8px 10px;border-radius:10px;border:1px solid #222;background:#fff;cursor:pointer;text-decoration:none}
 </style>
-<h1>✅/❌ KGB Health</h1>
-<div id="out" class="box">Bezig met testen…</div>
+<h1>✅/❌ Healthcheck</h1>
+<div class="tip">Klik eerst op <b>Caches legen</b>, dan op <b>Opnieuw testen</b>. Maak daarna een foto van de resultaten.</div>
+<div style="margin:10px 0">
+  <button id="clear">Caches legen</button>
+  <button id="run">Opnieuw testen</button>
+  <a class="btn" href="./full/" target="_blank">Open Full</a>
+  <a class="btn" href="./budget/" target="_blank">Open Budget</a>
+</div>
+<ul id="list"></ul>
 <script>
-(async function(){
-  const base = location.origin + '/KGB-Finance-2025';
-  const targets = [
-    {name:'Full',   url: base+'/full/index.html',   probe:[base+'/full/index.html', base+'/full/index_orig.html']},
-    {name:'Budget', url: base+'/budget/index.html', probe:[base+'/budget/index.html', base+'/budget/index_orig.html']},
+(function(){
+  const L = document.getElementById('list');
+  const Q = (label,url) => ({label, url});
+  const TS = () => Date.now();
+  const tests = [
+    Q('Full (startpagina)',       'full/?v='+TS()),
+    Q('Budget (startpagina)',     'budget/?v='+TS()),
+    Q('Full — originele app',     'full/index_orig.html?v='+TS()),
+    Q('Budget — originele app',   'budget/index_orig.html?v='+TS()),
+    Q('Data — settings.json',     'data/settings.json?v='+TS()),
+    Q('Data — Kurt/data.json',    'data/Kurt/data.json?v='+TS())
   ];
-  const out=document.getElementById('out');
-  function line(html){ out.innerHTML += '<div>'+html+'</div>'; }
-  out.innerHTML='';
-  for (const t of targets){
-    line('<b>'+t.name+'</b>');
-    // haal HTML op en check basisdingen
-    try{
-      const html = await (await fetch(t.url, {cache:'no-store'})).text();
-      const ok = /KGB Finance 2025/i.test(html);
-      line('• HTML: ' + (ok?'<span class=ok>OK</span>':'<span class=bad>Geen herkenbare inhoud</span>'));
-    }catch(e){ line('• HTML: <span class=bad>FOUT</span> '+e); }
-
-    // kijk of /data bestaat
-    try{
-      const r = await fetch(base+'/data/', {cache:'no-store'});
-      line('• /data/ map: ' + (r.ok?'<span class=ok>vindbaar</span>':'<span class=bad>niet gepubliceerd</span>'));
-    }catch(e){ line('• /data/ map: <span class=bad>fout</span>'); }
-
-    // bekende data-bestanden (pas aan indien nodig)
-    const files=['data.json','settings.json'];
-    for (const f of files){
-      try{
-        const r = await fetch(base+'/full/data/'+f, {cache:'no-store'});
-        line('• full/data/'+f+': ' + (r.ok?'<span class=ok>'+r.status+'</span>':'<span class=bad>'+r.status+'</span>'));
-      }catch(_){ line('• full/data/'+f+': <span class=bad>fout</span>'); }
-      try{
-        const r = await fetch(base+'/budget/data/'+f, {cache:'no-store'});
-        line('• budget/data/'+f+': ' + (r.ok?'<span class=ok>'+r.status+'</span>':'<span class=bad>'+r.status+'</span>'));
-      }catch(_){ line('• budget/data/'+f+': <span class=bad>fout</span>'); }
-    }
-    line('<hr>');
+  function line(icon, text, extra, cls){
+    const li = document.createElement('li');
+    li.className = cls||'';
+    li.innerHTML = `<span style="font-size:20px">${icon}</span><div>${text}${extra?`<div><small>${extra}</small></div>`:''}</div>`;
+    L.appendChild(li);
   }
+  async function run(){
+    L.innerHTML='';
+    for (const t of tests){
+      try{
+        const r = await fetch(t.url, {cache:'no-store'});
+        if (r.ok){
+          line('✅', t.label, `${r.status} ${r.statusText}`, 'ok');
+        }else{
+          line('❌', t.label, `${r.status} ${r.statusText} — ${t.url}`, 'fail');
+        }
+      }catch(e){
+        line('❌', t.label, `Netwerkfout — ${t.url}`, 'fail');
+      }
+    }
+  }
+  async function clearCaches(){
+    try{
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r=>r.unregister().catch(()=>{})));
+      }
+    }catch(_){}
+    try{
+      if (window.caches && caches.keys) {
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k=>caches.delete(k)));
+      }
+    }catch(_){}
+    alert('Caches leeggemaakt. Klik nu op “Opnieuw testen”.');
+  }
+  document.getElementById('clear').onclick = clearCaches;
+  document.getElementById('run').onclick = run;
+  run();
 })();
 </script>
