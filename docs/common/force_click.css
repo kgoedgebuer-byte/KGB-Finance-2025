@@ -1,0 +1,22 @@
+/* --- Forceer klikbaarheid / verwijder blockers --- */
+html, body, #root, #app, main { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
+[inert] { pointer-events: auto !important; }
+/* Typische overlays / loaders onschadelijk maken */
+.overlay, .backdrop, .modal, .scrim, .spinner, .loading, .preloader,
+#overlay, #backdrop, #modal, #spinner, #loading,
+[data-loading], [data-blocker], dialog[open] {
+  display: none !important; pointer-events: none !important; visibility: hidden !important;
+}
+/* Zorg dat controls altijd te bedienen zijn */
+a, button, input, select, textarea, summary,
+[role="button"], [role="link"], [role="tab"], [onclick], [tabindex] {
+  pointer-events: auto !important;
+}
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  pointer-events: auto !important; /* UI blijft aanklikbaar, app kan alsnog checken */
+}
+/* voorkom dat full-screen containers alles blokkeren */
+[style*="position:fixed"], [style*="position:absolute"] {
+  /* als ze schermvullend zijn en geen app-root: maak onschadelijk */
+  /* (CSS kan geen area-check doen; JS is uitgeschakeld, dus we neutraliseren common cases) */
+}
