@@ -1,0 +1,12 @@
+/* --- UI force: maak bediening klikbaar, scherm de grafiek-canvas af --- */
+a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"]{
+  pointer-events: auto !important;
+}
+/* Belangrijk: Chart.js (en andere) canvassen mogen geen kliks blokkeren */
+canvas, .chartjs-render-monitor, .chartjs-size-monitor {
+  pointer-events: none !important;
+}
+/* Veiligheidsnet voor ‘overlays’ die toch blijven hangen */
+.overlay, .backdrop, .modal, .scrim, .loading, .preloader, dialog[open]{
+  pointer-events: none !important;
+}
