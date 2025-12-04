@@ -1,5 +1,46 @@
 <link rel="stylesheet" href="../common/panic.css?v=1764868078"><head>
 
+<script id="kgb-click-unblock-core">
+(function(){
+  if (window.__KGB_CLICK_CORE__) return; window.__KGB_CLICK_CORE__=1;
+
+  // 1) Laat kliks altijd door (niemand mag ze blokkeren)
+  const CLICK_TYPES = new Set(['click','mousedown','mouseup','pointerdown','pointerup','touchend','touchstart']);
+  const origStop = Event.prototype.stopPropagation;
+  const origStopImm = Event.prototype.stopImmediatePropagation;
+  const origPrev = Event.prototype.preventDefault;
+
+  Event.prototype.stopPropagation = function(){ if (!CLICK_TYPES.has(this.type)) return origStop.call(this); };
+  Event.prototype.stopImmediatePropagation = function(){ if (!CLICK_TYPES.has(this.type)) return origStopImm.call(this); };
+  Event.prototype.preventDefault = function(){
+    if (!CLICK_TYPES.has(this.type)) return origPrev.call(this);
+    // klik/pointer/touch: niet blokkeren
+  };
+
+  // 2) Ontgrendel UI-staat
+  function unlock(doc){
+    try{
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      const host=(doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body);
+      if (host) host.style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{
+        el.disabled=false; el.removeAttribute('disabled');
+        const cs=(doc.defaultView||window).getComputedStyle(el);
+        if (cs && cs.pointerEvents==='none') el.style.pointerEvents='auto';
+      }catch(_){ }});
+    }catch(_){}
+  }
+
+  function run(){ unlock(document); }
+  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', run, {once:true}); } else { run(); }
+  setTimeout(run, 150); setTimeout(run, 400); setTimeout(run, 900);
+})();
+</script>
+
+
 
 
 <script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
@@ -10,63 +51,7 @@
 
 
 
-<style id="kgb-nood-style">
-  #kgb-nood{position:fixed !important; right:14px !important; bottom:14px !important;
-    z-index:2147483647 !important; background:#0b132b !important; color:#e6fff2 !important;
-    border:1px solid #1bd97b !important; border-radius:12px !important; padding:10px 12px !important;
-    font:12px/1.2 -apple-system,Segoe UI,Arial,sans-serif !important; box-shadow:0 8px 28px rgba(0,0,0,.35) !important}
-  #kgb-nood button{margin-right:6px !important; padding:6px 10px !important; border-radius:8px !important;
-    border:1px solid #1bd97b !important; background:#0f5132 !important; color:#e6fff2 !important; cursor:pointer !important}
-  #kgb-nood button.secondary{background:#021a12 !important}
-</style>
-<script id="kgb-nood-bar">
-(function(){
-  if (window.__KGB_NOODBAR__) return; window.__KGB_NOODBAR__=1;
 
-  function findPanicLink(){
-    const links=[...document.querySelectorAll('link[rel="stylesheet"]')];
-    return links.find(l=>/\/common\/panic\.css\b/.test(l.getAttribute('href')||''));
-  }
 
-  function unlock(doc){
-    try{
-      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
-      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
-      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
-      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){ } });
-    }catch(_){}
-  }
-
-  function togglePanic(){
-    const link=findPanicLink();
-    if(!link){ alert('panic.css niet gevonden'); return; }
-    // Toggle via disabled attribuut
-    link.disabled = !link.disabled;
-    btn1.textContent = link.disabled ? 'Noodmodus aan' : 'Noodmodus uit';
-    setTimeout(()=>unlock(document), 50);
-  }
-
-  // UI
-  const bar=document.createElement('div');
-  bar.id='kgb-nood';
-  const link=findPanicLink();
-  const btn1=document.createElement('button');
-  btn1.textContent = (link && !link.disabled) ? 'Noodmodus uit' : 'Noodmodus aan';
-  btn1.onclick=togglePanic;
-
-  const btn2=document.createElement('button');
-  btn2.className='secondary';
-  btn2.textContent='Herstel klikken';
-  btn2.onclick=()=>{ unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500); };
-
-  bar.appendChild(btn1); bar.appendChild(btn2);
-  document.body.appendChild(bar);
-
-  // kleine auto-ontgrendeling bij start
-  unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500);
-})();
-</script>
 </body>
 </html>
