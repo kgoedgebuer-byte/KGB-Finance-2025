@@ -1,15 +1,6 @@
 <!doctype html>
 <html lang="nl">
 <head>
-<script id="kgb-base-fix">(function(){
-  try{
-    var p = location.pathname.replace(/[^/]+$/, '');
-    document.write('<base href="'+ p.replace(/\/+$/,'/') +'">');
-  }catch(e){}
-})();</script>
-
-<script src="kgb_debug.js?v=1764839472" data-kgb-debug></script>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>KGB Finance 2025 — Web (Full)</title>
@@ -179,10 +170,10 @@
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
   <script src="../common/sync_embed.js" defer></script>
   <script src="../common/kgb_year_dropdown.js" defer></script>
   <script src="../common/drive_autopull.js"></script>
@@ -190,25 +181,5 @@ if ('serviceWorker' in navigator) {
   <script defer src="../common/pwa_hotfix.js"></script>
   <script defer src="../common/layout_fix.js"></script>
   <script defer src="../common/ui_rescue.js"></script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 </body>
 </html>
