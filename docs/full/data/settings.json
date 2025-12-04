@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "locale": "nl-BE",
+  "currency": "EUR",
+  "theme": "light",
+  "startYear": 2025,
+  "features": {
+    "budget": true,
+    "investments": true,
+    "crypto": true,
+    "agenda": true,
+    "family": true
+  },
+  "charts": {
+    "defaultType": "line",
+    "smooth": true
+  },
+  "format": {
+    "decimal": ",",
+    "thousands": ".",
+    "currencyPosition": "suffix"
+  }
+}
