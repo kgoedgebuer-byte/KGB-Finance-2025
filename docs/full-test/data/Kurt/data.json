@@ -1,0 +1,83 @@
+{
+  "budget": [
+    [
+      "1-12-2025",
+      "C.E.P.G",
+      "Eindejaarspremie",
+      "2996 Euro",
+      "",
+      "0.00"
+    ],
+    [
+      "1-12-2025",
+      "Fedris",
+      " Invaliditeit",
+      "1633 Euro",
+      "",
+      "0.00"
+    ],
+    [
+      "1-12-2025",
+      "Gezamelijke rekening",
+      "Maandelijkse vaste kosten",
+      "",
+      "1200 Euro",
+      "0.00"
+    ],
+    [
+      "2-12-2025",
+      "Proximus",
+      "GSM Abbonenment",
+      "",
+      "35,99 Euro",
+      "0.00"
+    ],
+    [
+      "2-12-2025",
+      "Netflix",
+      "Abbonenment",
+      "",
+      "23,98 Euro",
+      "0.00"
+    ],
+    [
+      "2-12-2025",
+      "A.B.V.V",
+      "Vakbond",
+      "",
+      "20 Euro",
+      "0.00"
+    ],
+    [
+      "2-12-2025",
+      "C.E.P.G",
+      "loon",
+      "839,32",
+      "",
+      "839.32"
+    ],
+    [
+      "2-12-2025",
+      "CM",
+      "Vervangins inkomen",
+      "95,42",
+      "",
+      "95.42"
+    ]
+  ],
+  "investments": [],
+  "crypto": [],
+  "agenda": [],
+  "_prefs": {
+    "theme": {
+      "bg": "#D1C4E9",
+      "sheet": "#E3F8FF",
+      "border": "#0078D4",
+      "button": "#A3D5D3",
+      "text": "#000000",
+      "grid": "#BDB2FF"
+    },
+    "intensity": 74,
+    "grid": 147
+  }
+}
