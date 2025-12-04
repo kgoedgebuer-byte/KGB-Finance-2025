@@ -1,40 +1,51 @@
 <!doctype html>
 <html lang="nl">
 <head>
-<script id="kgb-debug-hud-early">(function(){try{
-  if (window.__KGB_HUD__) return; window.__KGB_HUD__=1;
-  var css='#kgb-hud{position:fixed;left:10px;top:10px;z-index:2147483647;max-width:86vw;max-height:52vh;overflow:auto;background:#ffeaea;border:1px solid #a00;color:#300;border-radius:10px;padding:10px 12px;font:13px/1.35 -apple-system,Segoe UI,Arial,sans-serif;white-space:pre-wrap;box-shadow:0 8px 30px rgba(0,0,0,.35)}#kgb-hud b{color:#900}#kgb-hud .row{margin:6px 0}#kgb-copy{margin-left:8px;padding:4px 8px;border-radius:6px;border:1px solid #a00;background:#fff2f2;color:#900;cursor:pointer}';
-  document.write('<style>'+css+'</style><div id="kgb-hud"><b>Debug HUD</b> — laadt… <button id="kgb-copy">Log kopiëren</button><div id="kgb-log" class="row"></div></div>');
-  var L=function(){var div=document.getElementById('kgb-log'); if(!div) return; var t=[].map.call(arguments,x=> (x&&x.stack)|| (x&&x.message) || String(x)).join(' '); div.textContent='['+new Date().toLocaleTimeString()+'] '+t+'
-'+div.textContent;};
-  document.addEventListener('DOMContentLoaded', ()=>L('DOM ready'));
-  // onerror + unhandled
-  window.addEventListener('error', e=>L('ERROR:',e.message,'@',e.filename+':'+e.lineno));
-  window.addEventListener('unhandledrejection', e=>L('PROMISE:', e.reason));
-  // fetch monitor
-  if (window.fetch){ const _f=fetch; window.fetch=function(i,o){ return _f(i,o).then(r=>{ if(!r.ok){ try{L('HTTP',r.status,(r.statusText||''),'-',r.url);}catch(_){}} return r;}).catch(err=>{ try{L('FETCH ERR:',err,(i&&i.url)||i);}catch(_){ } throw err; });}; }
-  // XHR monitor
-  (function(){var X=window.XMLHttpRequest;if(!X) return;var O=X.prototype.open,S=X.prototype.send;X.prototype.open=function(m,u){this.__u=u;return O.apply(this,arguments)};X.prototype.send=function(){this.addEventListener('load',()=>{ if(this.status>=400) try{L('XHR',this.status,this.statusText,'-',this.__u);}catch(_){}});this.addEventListener('error',()=>{ try{L('XHR ERR -',this.__u);}catch(_){}});return S.apply(this,arguments)};})();
-  // JSON.parse soft
-  try{ const jp=JSON.parse; JSON.parse=function(t){ try{ return jp(t);}catch(e){ L('JSON.parse fout → fallback {}'); return {}; } }; }catch(_){}
-  // copy button
-  setTimeout(function(){ var b=document.getElementById('kgb-copy'); if(b){ b.onclick=function(){ try{ var txt=document.getElementById('kgb-log').textContent; navigator.clipboard.writeText(txt).then(()=>alert('Gekopieerd')).catch(()=>alert('Kopieer mislukt — selecteer en kopieer met Cmd+C')); }catch(_){ alert('Selecteer tekst en kopieer met Cmd+C'); } }; } }, 0);
-}catch(e){ alert('HUD init fout: '+e); }})();</script>
+<script id="kgb-base-fix">(function(){
+  try{
+    var p = location.pathname.replace(/[^/]+$/, '');
+    document.write('<base href="'+ p.replace(/\/+$/,'/') +'">');
+  }catch(e){}
+})();</script>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<script id="kgb-fetch-shim">
+(function(){
+  if (window.__KGB_FETCH_SHIM__) return; window.__KGB_FETCH_SHIM__=true;
+  const isDataUrl = (u)=>{ try{ const x = typeof u==='string'? u : (u&&u.url)||''; return /\/data\//.test(x) || /(^|[("'`])\.\/data\//.test(x); }catch(_){ return false; } };
+  const ok = (text)=> new Response(new Blob([text], {type:'application/json'}), {status:200, headers:{'Content-Type':'application/json'}});
+  // fetch()
+  const origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function(input, init){
+      return origFetch(input, init).then(resp=>{
+        if (!resp.ok && isDataUrl(resp.url)) { console.warn('KGB shim: vervang fout', resp.url, resp.status); return ok('{}'); }
+        return resp;
+      }).catch(err=>{
+        const u = (typeof input==='string'? input : (input&&input.url)) || '';
+        if (isDataUrl(u)) { console.warn('KGB shim: netwerkfout', u, err); return ok('{}'); }
+        throw err;
+      });
+    };
+  }
+  // XMLHttpRequest()
+  (function(){
+    const X = window.XMLHttpRequest; if (!X) return;
+    const P = X.prototype, open = P.open, send = P.send;
+    P.open = function(m,u){ this.__kgb_url = u; return open.apply(this, arguments); };
+    P.send = function(){
+      if (isDataUrl(this.__kgb_url)) {
+        this.addEventListener('load', ()=>{ if (this.status>=400) { try{ Object.defineProperty(this,'status',{value:200}); }catch(_){ } this.responseText='{}'; }});
+        this.addEventListener('error', ()=>{ try{
+          this.responseText='{}'; this.readyState=4; try{ Object.defineProperty(this,'status',{value:200}); }catch(_){}
+          this.dispatchEvent(new Event('readystatechange')); this.dispatchEvent(new Event('load'));
+        }catch(_){ }});
+      }
+      return send.apply(this, arguments);
+    };
+  })();
+  console.log('KGB fetch-shim actief');
+})();
+</script>
 
 
 
