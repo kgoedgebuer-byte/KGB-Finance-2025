@@ -9,7 +9,7 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "../icons/kgb-blue.svg",
+      "src": "/KGB-Finance-2025/icons/kgb-blue-v2.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
