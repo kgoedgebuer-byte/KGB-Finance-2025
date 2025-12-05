@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KGB Finance 2025 — Budget (Lite)</title>
+<style>
+  :root{--bg:#f6f7fb;--card:#fff;--muted:#616774;--accent:#0a7d39}
+  html,body{height:100%;margin:0;background:var(--bg);font:15px/1.5 -apple-system,Segoe UI,Arial,sans-serif;color:#111}
+  .wrap{max-width:980px;margin:20px auto;padding:0 16px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  button{padding:10px 12px;border-radius:10px;border:1px solid #cfd3da;background:#fff;cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid #e7e9f0;border-radius:14px;padding:14px}
+  .k{font-size:13px;color:var(--muted)}
+  .v{font-size:26px;font-weight:700}
+  .table{margin-top:14px;background:var(--card);border:1px solid #e7e9f0;border-radius:14px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;border-bottom:1px solid #eef1f5;text-align:left}
+  th{background:#f3f5f9;font-weight:600}
+  tfoot td{background:#fafbfe;font-weight:700}
+  input,select{padding:8px 10px;border:1px solid #cfd3da;border-radius:10px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .right{margin-left:auto}
+  .muted{color:var(--muted)}
+</style>
+<div class="wrap">
+  <h1>💰 KGB Finance 2025 — Budget <small class="muted">(Lite)</small></h1>
+  <div class="bar">
+    <button id="demo" class="primary">Demo-data</button>
+    <button id="reset">Alles wissen</button>
+    <span class="right"></span>
+    <button id="export">Export JSON</button>
+    <label><input id="file" type="file" accept="application/json" hidden><button id="import">Import JSON</button></label>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="k">Inkomen</div><div id="inkomen" class="v">0,00</div></div>
+    <div class="card"><div class="k">Uitgave</div><div id="uitgave" class="v">0,00</div></div>
+    <div class="card"><div class="k">Saldo</div><div id="saldo" class="v">0,00</div></div>
+  </div>
+
+  <div class="table">
+    <div class="row" style="padding:12px">
+      <input id="d_datum" type="date">
+      <select id="d_type">
+        <option value="inkomen">Inkomen</option>
+        <option value="uitgave">Uitgave</option>
+      </select>
+      <input id="d_cat" placeholder="Categorie" size="12">
+      <input id="d_oms" placeholder="Omschrijving" size="18">
+      <input id="d_bedrag" type="number" step="0.01" placeholder="Bedrag" style="width:140px">
+      <button id="add" class="primary">Toevoegen</button>
+    </div>
+    <table id="t">
+      <thead><tr>
+        <th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Type</th><th>Bedrag</th><th>Acties</th>
+      </tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><td colspan="6" class="muted">Tip: gebruik deze Lite als de hoofdapp blokkeert. Alles werkt zonder PWA/overlays.</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+
+<script>
+(() => {
+  const LS_KEY = 'kgb_budget_lite_v1';
+  const € = n => (n||0).toLocaleString('nl-BE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const $ = sel => document.querySelector(sel);
+  const state = { tx: [] };
+
+  function load(){
+    try{ const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}'); if (Array.isArray(s.tx)) state.tx = s.tx; }catch(_){}
+  }
+  function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  function add(datum,cat,oms,type,bedrag){
+    state.tx.push({datum,cat,oms,type,bedrag: Number(bedrag)||0});
+    save(); render();
+  }
+  function remove(idx){ state.tx.splice(idx,1); save(); render(); }
+
+  function render(){
+    const tb = $("#t tbody"); tb.innerHTML = '';
+    let inc = 0, out = 0;
+    state.tx.forEach((r, i) => {
+      if (r.type === 'inkomen') inc += r.bedrag; else out += r.bedrag;
+      const tr = document.createElement('tr');
+      tr.innerHTML = \`
+        <td>\${r.datum||''}</td>
+        <td>\${r.cat||''}</td>
+        <td>\${r.oms||''}</td>
+        <td>\${r.type}</td>
+        <td>\${€(r.bedrag)}</td>
+        <td><button data-i="\${i}">Verwijder</button></td>\`;
+      tb.appendChild(tr);
+    });
+    $("#inkomen").textContent = €(inc);
+    $("#uitgave").textContent = €(out);
+    $("#saldo").textContent   = €(inc - out);
+
+    tb.querySelectorAll('button[data-i]').forEach(b=>{
+      b.onclick = () => remove(Number(b.dataset.i));
+    });
+  }
+
+  // Events
+  $("#add").onclick = () => {
+    add($("#d_datum").value, $("#d_cat").value.trim(), $("#d_oms").value.trim(),
+        $("#d_type").value, $("#d_bedrag").value);
+    $("#d_oms").value = ""; $("#d_bedrag").value = "";
+  };
+  $("#demo").onclick = () => {
+    state.tx = [
+      {datum:new Date().toISOString().slice(0,10), cat:"Loon", oms:"Netto", type:"inkomen", bedrag:1000},
+      {datum:new Date().toISOString().slice(0,10), cat:"Auto", oms:"Brandstof", type:"uitgave", bedrag:70},
+      {datum:new Date().toISOString().slice(0,10), cat:"Wonen", oms:"Energie", type:"uitgave", bedrag:300},
+    ];
+    save(); render();
+  };
+  $("#reset").onclick = () => { if(confirm("Alles wissen?")){ state.tx = []; save(); render(); } };
+  $("#export").onclick = () => {
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'budget-lite.json'; a.click();
+  };
+  $("#import").onclick = () => $("#file").click();
+  $("#file").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try{ const txt = await f.text(); const s = JSON.parse(txt); if (Array.isArray(s.tx)) { state.tx = s.tx; save(); render(); } }
+    catch(err){ alert("Kon JSON niet lezen: "+err.message); }
+    e.target.value = "";
+  };
+
+  // Opstart
+  load(); render();
+})();
+</script>
+</html>
