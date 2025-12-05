@@ -1,10 +1,71 @@
 <!doctype html>
 <html lang="nl">
 <head>
-  <link rel="stylesheet" href="styles.css">
 
+<style id="kgb-full-unlock-style">
+  html,body,#root,#app,main{pointer-events:auto !important}
+  #kgb-fix-btn{position:fixed;left:10px;bottom:10px;z-index:2147483647;background:#0b132b;color:#e6fff2;border:1px solid #1bd97b;border-radius:10px;padding:6px 9px;font:12px -apple-system,Segoe UI,Arial}
+</style>
+<script id="kgb-full-unlock-core">
+(function(){
+  if (window.__KGB_FULL_UNLOCK__) return; window.__KGB_FULL_UNLOCK__=1;
 
+  // 0) PWA uit
+  try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())); } }catch(_){}
 
+  // 1) Laat kliks door (alleen klik/pointer/touch)
+  const T=new Set(['click','mousedown','mouseup','pointerdown','pointerup','touchstart','touchend']);
+  const S=Event.prototype.stopPropagation, SI=Event.prototype.stopImmediatePropagation, P=Event.prototype.preventDefault;
+  Event.prototype.stopPropagation=function(){ if(!T.has(this.type)) return S.call(this); };
+  Event.prototype.stopImmediatePropagation=function(){ if(!T.has(this.type)) return SI.call(this); };
+  Event.prototype.preventDefault=function(){ if(!T.has(this.type)) return P.call(this); };
+
+  function unlock(doc){
+    try{
+      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      // Buttons/links weer actief
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{
+        el.disabled=false; el.removeAttribute('disabled');
+        const cs=(doc.defaultView||window).getComputedStyle(el);
+        if(cs && cs.pointerEvents==='none') el.style.pointerEvents='auto';
+      }catch(_){ }});
+      // Dichte overlays/modals
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){} });
+      const killers=['.overlay','.backdrop','.modal','.scrim','.spinner','.loading','.preloader',
+                     '#overlay','#backdrop','#modal','#spinner','#loading','[data-loading]','[data-blocker]','[aria-modal="true"]'];
+      killers.forEach(s=>{ try{ doc.querySelectorAll(s).forEach(el=>{ el.style.display='none'; el.style.pointerEvents='none'; el.removeAttribute('inert'); el.removeAttribute('aria-modal'); }); }catch(_){} });
+
+      // Fullscreen cover via elementsFromPoint (midden)
+      try{
+        const w=doc.defaultView||window, vw=w.innerWidth, vh=w.innerHeight;
+        const stack=(doc.elementsFromPoint?vw&&vh&&doc.elementsFromPoint(vw/2,vh/2):[])||[];
+        for(const el of stack){
+          if(!el || el===doc.documentElement || el===doc.body) continue;
+          const r=el.getBoundingClientRect(), cs=w.getComputedStyle(el);
+          const looks=( (cs.position==='fixed'||cs.position==='absolute') && r.width>vw*0.60 && r.height>vh*0.60 );
+          if(looks){ el.style.display='none'; el.style.pointerEvents='none'; el.removeAttribute('inert'); break; }
+        }
+      }catch(_){}
+      // Shadow roots ook
+      try{ doc.querySelectorAll('*').forEach(e=>{ if(e.shadowRoot) unlock(e.shadowRoot); }); }catch(_){}
+    }catch(_){}
+  }
+
+  function boot(){ unlock(document); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', boot, {once:true}); } else { boot(); }
+  setTimeout(boot,150); setTimeout(boot,500); setTimeout(boot,1200);
+
+  // Noodknop
+  try{
+    const b=document.createElement('button'); b.id='kgb-fix-btn'; b.type='button'; b.textContent='Klik-fix';
+    b.onclick=()=>boot();
+    document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.altKey&&e.key.toLowerCase()==='k'){ boot(); }});
+    document.documentElement.appendChild(b);
+  }catch(_){}
+})();
+</script>
 
 
 
@@ -18,81 +79,14 @@
   <title>KGB Finance 2025 — Web (Full)</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#7c9cf5">
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml"><script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  
-<script id="kgb-web-safeload">
-(function(){
-  if (window.__KGB_SAFELOAD__) return; window.__KGB_SAFELOAD__=true;
-
-  // 1) Rood foutbanner bij JS-fouten
-  function banner(msg){
-    try{
-      var n=document.createElement('div');
-      n.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:2147483647;background:#7b1111;color:#fff;padding:10px 12px;border-radius:10px;font:13px/1.3 -apple-system,Segoe UI,Arial;box-shadow:0 8px 28px rgba(0,0,0,.3)';
-      n.textContent='FOUT: '+msg;
-      document.body.appendChild(n);
-      setTimeout(()=>{ try{ n.remove(); }catch(_){ } }, 8000);
-    }catch(_){}
-  }
-  window.addEventListener('error', e=>banner(e.message||'onbekend'));
-  window.addEventListener('unhandledrejection', e=>banner((e.reason&&e.reason.message)||String(e.reason||'Promise error')));
-
-  // 2) Fetch wrap: geef veilige defaults voor data JSONs
-  const origFetch = window.fetch ? window.fetch.bind(window) : null;
-  function isDataJson(u){
-    try{
-      const url = (typeof u==='string') ? new URL(u, location.href) : new URL(u.url||u, location.href);
-      return /\/data\/.*\.json(\?|$)/i.test(url.pathname + url.search);
-    }catch(_){ return false; }
-  }
-  async function safeJsonResponse(body){
-    return new Response(typeof body==='string' ? body : JSON.stringify(body), {
-      status: 200, headers: { 'Content-Type': 'application/json' }
-    });
-  }
-  if (origFetch){
-    window.fetch = async function(input, init){
-      try{
-        const res = await origFetch(input, init);
-        if (!res.ok && isDataJson(input)){
-          // lever minimale defaults zodat app niet blijft wachten
-          if (String(input).includes('settings.json')) {
-            return safeJsonResponse({ year: new Date().getFullYear(), tabs: ["Overzicht","Transacties"], drive:false });
-          }
-          return safeJsonResponse({}); // generieke lege JSON
-        }
-        return res;
-      }catch(err){
-        if (isDataJson(input)) return safeJsonResponse({});
-        throw err;
-      }
-    };
-  }
-
-  // 3) Ontgrendel UI: maak klikbaar en haal loaders weg
-  function unlock(doc){
-    try{
-      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
-      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ try{
-        el.disabled=false; el.removeAttribute('disabled');
-        const cs=(doc.defaultView||window).getComputedStyle(el);
-        if (cs && cs.pointerEvents==='none') el.style.pointerEvents='auto';
-      }catch(_){ }});
-      const killers=['.overlay','.backdrop','.modal','.scrim','.spinner','.loading','.preloader',
-                     '#overlay','#backdrop','#modal','#spinner','#loading','[data-loading]','[data-blocker]','[aria-modal="true"]'];
-      killers.forEach(s=>{ try{ doc.querySelectorAll(s).forEach(el=>{ el.style.display='none'; el.style.pointerEvents='none'; el.removeAttribute('inert'); el.removeAttribute('aria-modal'); }); }catch(_){ }});
-    }catch(_){}
-  }
-  function boot(){ unlock(document); }
-  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', boot, {once:true}); } else { boot(); }
-  setTimeout(boot, 800); setTimeout(boot, 1500); setTimeout(boot, 2500);
-})();
-</script>
-
-<script defer src="app.js"></script>
-  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-full-180.png"><meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-full-180.png">
+  <link rel="stylesheet" href="../common/sync_embed.css">
+  <link rel="stylesheet" href="../common/ui_fix.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
 <header class="bar">
@@ -252,5 +246,33 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script></body>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+  <script src="../common/sync_embed.js" defer></script>
+  <script src="../common/kgb_year_dropdown.js" defer></script>
+  <script src="../common/drive_autopull.js"></script>
+  <script src="../common/ui_fix.js"></script>
+  <script defer src="../common/pwa_hotfix.js"></script>
+  <script defer src="../common/layout_fix.js"></script>
+  <script defer src="../common/ui_rescue.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
 </html>
