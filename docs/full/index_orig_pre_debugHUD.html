@@ -1,6 +1,56 @@
 <!doctype html>
 <html lang="nl">
 <head>
+<script id="kgb-base-fix">(function(){
+  try{
+    var p = location.pathname.replace(/[^/]+$/, '');
+    document.write('<base href="'+ p.replace(/\/+$/,'/') +'">');
+  }catch(e){}
+})();</script>
+
+<script id="kgb-fetch-shim">
+(function(){
+  if (window.__KGB_FETCH_SHIM__) return; window.__KGB_FETCH_SHIM__=true;
+  const isDataUrl = (u)=>{ try{ const x = typeof u==='string'? u : (u&&u.url)||''; return /\/data\//.test(x) || /(^|[("'`])\.\/data\//.test(x); }catch(_){ return false; } };
+  const ok = (text)=> new Response(new Blob([text], {type:'application/json'}), {status:200, headers:{'Content-Type':'application/json'}});
+  // fetch()
+  const origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function(input, init){
+      return origFetch(input, init).then(resp=>{
+        if (!resp.ok && isDataUrl(resp.url)) { console.warn('KGB shim: vervang fout', resp.url, resp.status); return ok('{}'); }
+        return resp;
+      }).catch(err=>{
+        const u = (typeof input==='string'? input : (input&&input.url)) || '';
+        if (isDataUrl(u)) { console.warn('KGB shim: netwerkfout', u, err); return ok('{}'); }
+        throw err;
+      });
+    };
+  }
+  // XMLHttpRequest()
+  (function(){
+    const X = window.XMLHttpRequest; if (!X) return;
+    const P = X.prototype, open = P.open, send = P.send;
+    P.open = function(m,u){ this.__kgb_url = u; return open.apply(this, arguments); };
+    P.send = function(){
+      if (isDataUrl(this.__kgb_url)) {
+        this.addEventListener('load', ()=>{ if (this.status>=400) { try{ Object.defineProperty(this,'status',{value:200}); }catch(_){ } this.responseText='{}'; }});
+        this.addEventListener('error', ()=>{ try{
+          this.responseText='{}'; this.readyState=4; try{ Object.defineProperty(this,'status',{value:200}); }catch(_){}
+          this.dispatchEvent(new Event('readystatechange')); this.dispatchEvent(new Event('load'));
+        }catch(_){ }});
+      }
+      return send.apply(this, arguments);
+    };
+  })();
+  console.log('KGB fetch-shim actief');
+})();
+</script>
+
+
+
+<script src="kgb_debug.js?v=1764839472" data-kgb-debug></script>
+
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>KGB Finance 2025 — Web (Full)</title>
@@ -170,10 +220,10 @@
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+  window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
   <script src="../common/sync_embed.js" defer></script>
   <script src="../common/kgb_year_dropdown.js" defer></script>
   <script src="../common/drive_autopull.js"></script>
@@ -181,5 +231,25 @@ if ('serviceWorker' in navigator) {
   <script defer src="../common/pwa_hotfix.js"></script>
   <script defer src="../common/layout_fix.js"></script>
   <script defer src="../common/ui_rescue.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 </body>
 </html>

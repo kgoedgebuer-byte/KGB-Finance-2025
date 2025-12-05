@@ -39,7 +39,6 @@ button.danger{border-color:#fecaca;background:#fee2e2;color:#b91c1c}
 .swatches button{width:28px;height:28px;border-radius:6px;border:1px solid #555;cursor:pointer}
 .sliders{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
 .themeBtns{display:flex;gap:8px}
-
 footer{padding:16px 20px;color:#64748b}
 .muted{color:#64748b}
 .actions{display:flex;gap:6px}

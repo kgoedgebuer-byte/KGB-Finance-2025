@@ -1,92 +1,28 @@
 <!doctype html>
 <html lang="nl">
 <head>
+<script id="kgb-debug-hud-early">(function(){try{
+  if (window.__KGB_HUD__) return; window.__KGB_HUD__=1;
+  var css='#kgb-hud{position:fixed;left:10px;top:10px;z-index:2147483647;max-width:86vw;max-height:52vh;overflow:auto;background:#ffeaea;border:1px solid #a00;color:#300;border-radius:10px;padding:10px 12px;font:13px/1.35 -apple-system,Segoe UI,Arial,sans-serif;white-space:pre-wrap;box-shadow:0 8px 30px rgba(0,0,0,.35)}#kgb-hud b{color:#900}#kgb-hud .row{margin:6px 0}#kgb-copy{margin-left:8px;padding:4px 8px;border-radius:6px;border:1px solid #a00;background:#fff2f2;color:#900;cursor:pointer}';
+  document.write('<style>'+css+'</style><div id="kgb-hud"><b>Debug HUD</b> — laadt… <button id="kgb-copy">Log kopiëren</button><div id="kgb-log" class="row"></div></div>');
+  var L=function(){var div=document.getElementById('kgb-log'); if(!div) return; var t=[].map.call(arguments,x=> (x&&x.stack)|| (x&&x.message) || String(x)).join(' '); div.textContent='['+new Date().toLocaleTimeString()+'] '+t+'
+'+div.textContent;};
+  document.addEventListener('DOMContentLoaded', ()=>L('DOM ready'));
+  // onerror + unhandled
+  window.addEventListener('error', e=>L('ERROR:',e.message,'@',e.filename+':'+e.lineno));
+  window.addEventListener('unhandledrejection', e=>L('PROMISE:', e.reason));
+  // fetch monitor
+  if (window.fetch){ const _f=fetch; window.fetch=function(i,o){ return _f(i,o).then(r=>{ if(!r.ok){ try{L('HTTP',r.status,(r.statusText||''),'-',r.url);}catch(_){}} return r;}).catch(err=>{ try{L('FETCH ERR:',err,(i&&i.url)||i);}catch(_){ } throw err; });}; }
+  // XHR monitor
+  (function(){var X=window.XMLHttpRequest;if(!X) return;var O=X.prototype.open,S=X.prototype.send;X.prototype.open=function(m,u){this.__u=u;return O.apply(this,arguments)};X.prototype.send=function(){this.addEventListener('load',()=>{ if(this.status>=400) try{L('XHR',this.status,this.statusText,'-',this.__u);}catch(_){}});this.addEventListener('error',()=>{ try{L('XHR ERR -',this.__u);}catch(_){}});return S.apply(this,arguments)};})();
+  // JSON.parse soft
+  try{ const jp=JSON.parse; JSON.parse=function(t){ try{ return jp(t);}catch(e){ L('JSON.parse fout → fallback {}'); return {}; } }; }catch(_){}
+  // copy button
+  setTimeout(function(){ var b=document.getElementById('kgb-copy'); if(b){ b.onclick=function(){ try{ var txt=document.getElementById('kgb-log').textContent; navigator.clipboard.writeText(txt).then(()=>alert('Gekopieerd')).catch(()=>alert('Kopieer mislukt — selecteer en kopieer met Cmd+C')); }catch(_){ alert('Selecteer tekst en kopieer met Cmd+C'); } }; } }, 0);
+}catch(e){ alert('HUD init fout: '+e); }})();</script>
 
-<style id="kgb-stopladen-style-v1">
-  #kgb-stop-btn{position:fixed;right:14px;bottom:14px;z-index:2147483647;padding:10px 12px;border:0;border-radius:12px;
-    background:#0a7d39;color:#fff;font:13px/1.2 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 6px 26px rgba(0,0,0,.25);cursor:pointer}
-  #kgb-stop-btn small{display:block;font-size:11px;opacity:.85}
-</style>
-<script id="kgb-stopladen-v1">
-(function(){
-  if (window.__KGB_STOP_LADEN_V1__) return; window.__KGB_STOP_LADEN_V1__=true;
 
-  function unclog(doc, win){
-    try{
-      // Unfreeze
-      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
-      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
 
-      // Overlays weg
-      const vw = (win||window).innerWidth||1, vh=(win||window).innerHeight||1, A=vw*vh;
-      const pts=[[vw/2,vh/2],[6,6],[vw-6,6],[6,vh-6],[vw-6,vh-6]];
-      const seen=new Set(), pick=[];
-      for(const [x,y] of pts){
-        const stack = doc.elementsFromPoint ? doc.elementsFromPoint(x,y) : [];
-        for(const el of stack){
-          if(!el||seen.has(el)) continue; seen.add(el);
-          const cs = (win||window).getComputedStyle(el); if(!cs) continue;
-          const r = el.getBoundingClientRect(); if(!r) continue;
-          const ratio = (Math.max(0,r.width)*Math.max(0,r.height))/A;
-          const zi = parseInt(cs.zIndex||'0')||0;
-          const looks = ratio>0.70 ||
-                        ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
-                        /(backdrop|overlay|modal|scrim|spinner|loading|blocker)/i.test(el.className||'') ||
-                        (el.tagName==='IFRAME' && ratio>0.50);
-          if (looks) pick.push(el);
-        }
-      }
-      const uniq=[]; const s2=new Set(); for(const el of pick){ if(!s2.has(el)){ uniq.push(el); s2.add(el);} }
-      for(const el of uniq){
-        try{
-          if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
-          el.style.pointerEvents='none'; el.style.background='transparent'; el.style.backdropFilter='none';
-          el.removeAttribute('inert');
-        }catch(_){}
-      }
-
-      // UI klikbaar
-      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ const cs=(win||window).getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; el.removeAttribute('disabled'); });
-      (doc.getElementById('root')||doc.getElementById('app')||doc.body).style.pointerEvents='auto';
-    }catch(_){}
-  }
-
-  function clearSW(){
-    try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});} }catch(_){}
-    try{ if(window.caches&&caches.keys){ caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{});} }catch(_){}
-  }
-
-  function runAll(){ unclog(document, window); }
-
-  // Zet knop
-  function mountBtn(){
-    if (document.getElementById('kgb-stop-btn')) return;
-    const b=document.createElement('button');
-    b.id='kgb-stop-btn';
-    b.innerHTML='Stop laden <small>(ontgrendel & maak klikbaar)</small>';
-    b.onclick=()=>{ clearSW(); runAll(); setTimeout(runAll,300); setTimeout(runAll,1200); };
-    document.body.appendChild(b);
-  }
-
-  // Auto: probeer na load + retries
-  function schedule(){
-    clearSW();
-    runAll();
-    setTimeout(runAll, 200);
-    setTimeout(runAll, 800);
-    setTimeout(runAll, 1600);
-    mountBtn();
-  }
-
-  if (document.readyState==='loading') {
-    document.addEventListener('DOMContentLoaded', schedule, {once:true});
-  } else {
-    schedule();
-  }
-})();
-</script>
 
 
 
@@ -106,24 +42,28 @@
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>KGB Finance 2025 — Budget</title>
+  <title>KGB Finance 2025 — Web (Full)</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#7c9cf5">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script defer src="app.js"></script>
-  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
+  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-full-180.png">
   <link rel="stylesheet" href="../common/sync_embed.css">
   <link rel="stylesheet" href="../common/ui_fix.css">
   <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
 <header class="bar">
-  <h1>💰 KGB Finance 2025 — Budget</h1>
+  <h1>💰 KGB Finance 2025 — Web (Full)</h1>
   <nav class="tabs">
     <button data-tab="dashboard" class="tab active">Dashboard</button>
     <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="invest" class="tab">Beleggingen</button>
+    <button data-tab="crypto" class="tab">Crypto</button>
+    <button data-tab="agenda" class="tab">Agenda</button>
+    <button data-tab="family" class="tab">Familie</button>
     <button data-tab="theme" class="tab">Thema</button>
     <button data-tab="io" class="tab">Export / Import</button>
   </nav>
@@ -135,8 +75,9 @@
       <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
       <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
       <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
+      <div class="card"><div class="k">Beleggingen (netto)</div><div class="v" id="totInvest">0,00</div></div>
+      <div class="card"><div class="k">Crypto (netto)</div><div class="v" id="totCrypto">0,00</div></div>
     </div>
-
     <div class="chartBar">
       <div class="left">
         <strong>Grafiek:</strong>
@@ -146,7 +87,7 @@
       </div>
       <div class="right">
         <button id="btnDemo">Demo-data</button>
-        <button id="btnClear">Refresh</button>
+        <button id="btnClear">Alles wissen</button>
       </div>
     </div>
     <canvas id="saldoChart" height="160"></canvas>
@@ -162,15 +103,71 @@
       <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
       <button type="submit">➕ Toevoegen</button>
     </form>
-
     <div class="tableWrap">
       <table id="tblBudget" class="grid">
-        <thead>
-          <tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th></tr>
-        </thead>
+        <thead><tr><th>Datum</th><th>Categorie</th><th>Omschrijving</th><th>Inkomen</th><th>Uitgave</th><th>Saldo</th><th>Acties</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
+  </section>
+
+  <section id="invest" class="panel">
+    <h2>💼 Beleggingen</h2>
+    <form id="addInvest" class="addForm">
+      <input id="i_date" type="date" required />
+      <input id="i_name" type="text" placeholder="Aandeel" required />
+      <input id="i_qty" type="number" step="0.0001" inputmode="decimal" placeholder="Aantal" required />
+      <input id="i_buy" type="number" step="0.01" inputmode="decimal" placeholder="Aankoop">
+      <input id="i_sell" type="number" step="0.01" inputmode="decimal" placeholder="Verkoop">
+      <input id="i_div" type="number" step="0.01" inputmode="decimal" placeholder="Dividend">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tblInvest" class="grid">
+        <thead><tr><th>Datum</th><th>Aandeel</th><th>Aantal</th><th>Aankoop</th><th>Verkoop</th><th>Dividend</th><th>Winst</th><th>Verlies</th><th>Acties</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="crypto" class="panel">
+    <h2>🪙 Crypto</h2>
+    <form id="addCrypto" class="addForm">
+      <input id="c_date" type="date" required />
+      <input id="c_token" type="text" placeholder="Token" required />
+      <input id="c_qty" type="number" step="0.0001" inputmode="decimal" placeholder="Aantal" required />
+      <input id="c_buy" type="number" step="0.01" inputmode="decimal" placeholder="Aankoop">
+      <input id="c_sell" type="number" step="0.01" inputmode="decimal" placeholder="Verkoop">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tblCrypto" class="grid">
+        <thead><tr><th>Datum</th><th>Token</th><th>Aantal</th><th>Aankoop</th><th>Verkoop</th><th>Winst</th><th>Verlies</th><th>Acties</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="agenda" class="panel">
+    <h2>🗓️ Agenda</h2>
+    <form id="addAgenda" class="addForm">
+      <input id="a_date" type="date" required />
+      <input id="a_task" type="text" placeholder="Taak" required />
+      <input id="a_status" type="text" placeholder="Status" />
+      <input id="a_meet" type="text" placeholder="Afspraak" />
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+    <div class="tableWrap">
+      <table id="tblAgenda" class="grid">
+        <thead><tr><th>Datum</th><th>Taak</th><th>Status</th><th>Afspraak</th><th>Acties</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="family" class="panel">
+    <h2>👨‍👩‍👧 Familie</h2>
+    <p class="muted">Deel deze link met familie. Data blijft per toestel. Delen? Gebruik Export/Import JSON.</p>
   </section>
 
   <section id="theme" class="panel">
