@@ -1,7 +1,57 @@
 <!doctype html>
 <html lang="nl">
 <head>
-  <link rel="icon" href="../icons/kgb-green.svg" type="image/svg+xml">
+<style id="kgb-inline-styles">
+/* inlined from budget/styles.css */
+:root{
+  --bg:#f5f7ff; --bg2:#eaf6ff; --card:#ffffff; --txt:#0f172a; --muted:#64748b;
+  --acc:#7c9cf5; --acc-strong:#3b82f6; --ok:#16a34a; --grid:#e2e8f0;
+  --shadow:0 6px 20px rgba(2,6,23,.08);
+}
+*{box-sizing:border-box} html,body{height:100%} body{margin:0;color:var(--txt);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,var(--bg),var(--bg2))}
+.bar{padding:16px 20px 8px}
+h1{margin:0 0 10px;font-size:22px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:1px solid var(--acc);color:#0b3aa3;background:#eef2ff;border-radius:999px;padding:8px 14px;cursor:pointer}
+.tab.active{background:var(--acc-strong);color:#fff}
+main{padding:6px 20px 24px} .panel{display:none} .panel.active{display:block}
+h2{margin:6px 0 8px}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--grid);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+.card .k{font-size:13px;color:var(--muted)} .card .v{margin-top:6px;font-size:24px;font-weight:700}
+.v.ok{color:#16a34a}
+
+.chartBar{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px;gap:10px;flex-wrap:wrap}
+.chartBar .left label{margin-right:12px}
+.chartBar button{padding:8px 12px;border-radius:10px;border:1px solid var(--grid);background:#fff;cursor:pointer}
+
+.addForm{display:grid;grid-template-columns:repeat(6,minmax(160px,1fr));gap:8px;margin:10px 0}
+input,button,select{padding:10px 12px;border:1px solid var(--grid);border-radius:12px;background:#fff} button{cursor:pointer}
+.tableWrap{overflow:auto;border:1px solid var(--grid);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--grid);text-align:left;white-space:nowrap}
+thead th{position:sticky;top:0;background:#eef2ff;border-bottom:1px solid #c7d2fe}
+.grid td input{width:140px}
+
+.io-actions{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+.fileLabel{display:inline-flex;align-items:center;gap:6px;padding:10px 12px;border:1px dashed var(--grid);border-radius:12px;background:#fff;cursor:pointer}
+.fileLabel input{display:none}
+button.danger{border-color:#fecaca;background:#fee2e2;color:#b91c1c}
+
+.themeBox{background:var(--card);border:1px solid var(--grid);border-radius:14px;padding:12px;box-shadow:var(--shadow)}
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,28px);gap:8px;margin:10px 0}
+.swatches button{width:28px;height:28px;border-radius:6px;border:1px solid #555;cursor:pointer}
+.sliders{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
+.themeBtns{display:flex;gap:8px}
+footer{padding:16px 20px;color:#64748b}
+.muted{color:#64748b}
+.actions{display:flex;gap:6px}
+.actions button{padding:6px 10px}
+@media (max-width:980px){ .addForm{grid-template-columns:1fr 1fr} }
+
+</style>
+
 
 <style id="web-boot-style">
   html,body,#root,#app,main{pointer-events:auto !important}
@@ -56,8 +106,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>KGB Finance 2025 — Budget</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#7c9cf5"><link rel="stylesheet" href="styles.css" />
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <meta name="theme-color" content="#7c9cf5">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml"><script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script defer src="app.js"></script>
   <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png"><meta name="apple-mobile-web-app-capable" content="yes">
 </head>

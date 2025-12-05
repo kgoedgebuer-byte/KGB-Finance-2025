@@ -1,52 +1,51 @@
 <!doctype html>
 <html lang="nl">
 <head>
-  <link rel="icon" href="../icons/kgb-green.svg" type="image/svg+xml">
+<script id="kgb-base-fix">(function(){
+  try{
+    var p = location.pathname.replace(/[^/]+$/, '');
+    document.write('<base href="'+ p.replace(/\/+$/,'/') +'">');
+  }catch(e){}
+})();</script>
 
-<style id="web-boot-style">
-  html,body,#root,#app,main{pointer-events:auto !important}
-</style>
-<script id="web-boot">
+<script id="kgb-fetch-shim">
 (function(){
-  try{ if('serviceWorker' in navigator){
-    navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
-  }}catch(_){}
-  function unlock(doc){
-    try{
-      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
-      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
-      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
-      doc.querySelectorAll(sel).forEach(el=>{ try{
-        el.disabled=false; el.removeAttribute('disabled');
-        const cs=(doc.defaultView||window).getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto';
-      }catch(_){ }});
-    }catch(_){}
-  }
-  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', ()=>unlock(document), {once:true}); } else { unlock(document); }
-  setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),400);
-})();
-</script>
-<script id="web-drive-off">
-(function(){
-  function disableDrive(root){
-    try{
-      Array.from(root.querySelectorAll('a,button')).forEach(el=>{
-        const t=(el.textContent||'').trim().toLowerCase();
-        if (t==='drive' || t.startsWith('drive ')){
-          el.textContent='Drive (uit)'; el.setAttribute('aria-disabled','true');
-          el.style.pointerEvents='none'; el.style.opacity='0.5';
-        }
+  if (window.__KGB_FETCH_SHIM__) return; window.__KGB_FETCH_SHIM__=true;
+  const isDataUrl = (u)=>{ try{ const x = typeof u==='string'? u : (u&&u.url)||''; return /\/data\//.test(x) || /(^|[("'`])\.\/data\//.test(x); }catch(_){ return false; } };
+  const ok = (text)=> new Response(new Blob([text], {type:'application/json'}), {status:200, headers:{'Content-Type':'application/json'}});
+  // fetch()
+  const origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function(input, init){
+      return origFetch(input, init).then(resp=>{
+        if (!resp.ok && isDataUrl(resp.url)) { console.warn('KGB shim: vervang fout', resp.url, resp.status); return ok('{}'); }
+        return resp;
+      }).catch(err=>{
+        const u = (typeof input==='string'? input : (input&&input.url)) || '';
+        if (isDataUrl(u)) { console.warn('KGB shim: netwerkfout', u, err); return ok('{}'); }
+        throw err;
       });
-    }catch(_){}
+    };
   }
-  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', ()=>disableDrive(document), {once:true}); }
-  else { disableDrive(document); }
+  // XMLHttpRequest()
+  (function(){
+    const X = window.XMLHttpRequest; if (!X) return;
+    const P = X.prototype, open = P.open, send = P.send;
+    P.open = function(m,u){ this.__kgb_url = u; return open.apply(this, arguments); };
+    P.send = function(){
+      if (isDataUrl(this.__kgb_url)) {
+        this.addEventListener('load', ()=>{ if (this.status>=400) { try{ Object.defineProperty(this,'status',{value:200}); }catch(_){ } this.responseText='{}'; }});
+        this.addEventListener('error', ()=>{ try{
+          this.responseText='{}'; this.readyState=4; try{ Object.defineProperty(this,'status',{value:200}); }catch(_){}
+          this.dispatchEvent(new Event('readystatechange')); this.dispatchEvent(new Event('load'));
+        }catch(_){ }});
+      }
+      return send.apply(this, arguments);
+    };
+  })();
+  console.log('KGB fetch-shim actief');
 })();
 </script>
-
-
-
-
 
 
 
@@ -56,10 +55,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>KGB Finance 2025 — Budget</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#7c9cf5"><link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#7c9cf5">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script defer src="app.js"></script>
-  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png"><meta name="apple-mobile-web-app-capable" content="yes">
+  <link <link rel="apple-touch-icon" sizes="180x180" href="../icons/kgb-budget-180.png">
+  <link rel="stylesheet" href="../common/sync_embed.css">
+  <link rel="stylesheet" href="../common/ui_fix.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
 <header class="bar">
@@ -158,5 +162,33 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script></body>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script>
+  <script src="../common/sync_embed.js" defer></script>
+  <script src="../common/kgb_year_dropdown.js" defer></script>
+  <script src="../common/drive_autopull.js"></script>
+  <script src="../common/ui_fix.js"></script>
+  <script defer src="../common/pwa_hotfix.js"></script>
+  <script defer src="../common/layout_fix.js"></script>
+  <script defer src="../common/ui_rescue.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
 </html>

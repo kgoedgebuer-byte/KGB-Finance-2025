@@ -1,0 +1,67 @@
+
+
+
+<link rel="stylesheet" href="../common/panic.css?v=1764868078"><!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=../budget/">
+<title>KGB Full → Budget</title>
+<p>Doorsturen naar <a href="../budget/">Budget</a>…</p>
+
+<style id="kgb-nood-style">
+  #kgb-nood{position:fixed !important; right:14px !important; bottom:14px !important;
+    z-index:2147483647 !important; background:#0b132b !important; color:#e6fff2 !important;
+    border:1px solid #1bd97b !important; border-radius:12px !important; padding:10px 12px !important;
+    font:12px/1.2 -apple-system,Segoe UI,Arial,sans-serif !important; box-shadow:0 8px 28px rgba(0,0,0,.35) !important}
+  #kgb-nood button{margin-right:6px !important; padding:6px 10px !important; border-radius:8px !important;
+    border:1px solid #1bd97b !important; background:#0f5132 !important; color:#e6fff2 !important; cursor:pointer !important}
+  #kgb-nood button.secondary{background:#021a12 !important}
+</style>
+<script id="kgb-nood-bar">
+(function(){
+  if (window.__KGB_NOODBAR__) return; window.__KGB_NOODBAR__=1;
+
+  function findPanicLink(){
+    const links=[...document.querySelectorAll('link[rel="stylesheet"]')];
+    return links.find(l=>/\/common\/panic\.css\b/.test(l.getAttribute('href')||''));
+  }
+
+  function unlock(doc){
+    try{
+      doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+      doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){ } });
+      doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+      (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
+      const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+      doc.querySelectorAll(sel).forEach(el=>{ try{ el.disabled=false; el.removeAttribute('disabled'); const cs=getComputedStyle(el); if(cs.pointerEvents==='none') el.style.pointerEvents='auto'; }catch(_){ } });
+    }catch(_){}
+  }
+
+  function togglePanic(){
+    const link=findPanicLink();
+    if(!link){ alert('panic.css niet gevonden'); return; }
+    // Toggle via disabled attribuut
+    link.disabled = !link.disabled;
+    btn1.textContent = link.disabled ? 'Noodmodus aan' : 'Noodmodus uit';
+    setTimeout(()=>unlock(document), 50);
+  }
+
+  // UI
+  const bar=document.createElement('div');
+  bar.id='kgb-nood';
+  const link=findPanicLink();
+  const btn1=document.createElement('button');
+  btn1.textContent = (link && !link.disabled) ? 'Noodmodus uit' : 'Noodmodus aan';
+  btn1.onclick=togglePanic;
+
+  const btn2=document.createElement('button');
+  btn2.className='secondary';
+  btn2.textContent='Herstel klikken';
+  btn2.onclick=()=>{ unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500); };
+
+  bar.appendChild(btn1); bar.appendChild(btn2);
+  document.body.appendChild(bar);
+
+  // kleine auto-ontgrendeling bij start
+  unlock(document); setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),500);
+})();
+</script>
