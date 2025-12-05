@@ -1,0 +1,14 @@
+{
+  "theme": {
+    "bg": "#A3D5D3",
+    "sheet": "#C8E7FF",
+    "border": "#0078D4",
+    "button": "#BBDEFB",
+    "text": "#000000",
+    "grid": "#E4C6A1",
+    "intensity": 100,
+    "grid_intensity": 100
+  },
+  "intensity": 100,
+  "grid_intensity": 131
+}

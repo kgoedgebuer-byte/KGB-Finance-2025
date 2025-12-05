@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kliktest — pure HTML</title>
+<style>
+  html,body{height:100%;margin:0}
+  body{display:grid;place-items:center;background:#fafafa;font:16px/1.4 -apple-system,Segoe UI,Arial,sans-serif}
+  #wrap{background:#fff;border:1px solid #eee;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:22px;max-width:600px}
+  button{padding:12px 14px;border-radius:12px;border:1px solid #222;background:#111;color:#fff;cursor:pointer;font-weight:600}
+  #log{position:fixed;right:10px;bottom:10px;z-index:2147483647;background:#111;color:#0f0;border:1px solid #0f0;border-radius:10px;padding:8px 10px;max-width:46vw;max-height:40vh;overflow:auto;white-space:pre-wrap;font:12px/1.25 -apple-system,Segoe UI,Arial,sans-serif}
+</style>
+<div id="wrap">
+  <h1>Kliktest</h1>
+  <p>Deze pagina heeft <b>geen</b> externe scripts of CSS. Als de knop werkt, zie je een alert en logs rechts-onder.</p>
+  <button id="btn">Klik hier</button>
+</div>
+<pre id="log"></pre>
+<script>
+(function(){
+  const L = document.getElementById('log');
+  const log = (...a)=>{ L.textContent = '['+new Date().toLocaleTimeString()+'] '+a.join(' ')+'\n'+L.textContent; };
+
+  const btn = document.getElementById('btn');
+  ['pointerdown','pointerup','mousedown','mouseup','click','touchstart','touchend'].forEach(t=>{
+    window.addEventListener(t, e=>log('event', t, 'target=', (e.target&&e.target.tagName)||'?'), true);
+    btn.addEventListener(t, e=>log('BTN', t), false);
+  });
+
+  btn.addEventListener('click', ()=>{
+    alert('Klik ontvangen ✅');
+    log('ALERT getoond');
+  });
+
+  // Sanity: forceer pointer-events aan op kritieke elementen
+  document.body.style.pointerEvents='auto';
+  btn.style.pointerEvents='auto';
+})();
+</script>
+</html>

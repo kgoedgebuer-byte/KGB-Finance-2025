@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<script id="kgb-base-fix">(function(){
+  try{
+    var p = location.pathname.replace(/[^/]+$/, '');
+    document.write('<base href="'+ p.replace(/\/+$/,'/') +'">');
+  }catch(e){}
+})();</script>
+
+<script id="kgb-fetch-shim">
+(function(){
+  if (window.__KGB_FETCH_SHIM__) return; window.__KGB_FETCH_SHIM__=true;
+  const isDataUrl = (u)=>{ try{ const x = typeof u==='string'? u : (u&&u.url)||''; return /\/data\//.test(x) || /(^|[("'`])\.\/data\//.test(x); }catch(_){ return false; } };
+  const ok = (text)=> new Response(new Blob([text], {type:'application/json'}), {status:200, headers:{'Content-Type':'application/json'}});
+  // fetch()
+  const origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function(input, init){
+      return origFetch(input, init).then(resp=>{
+        if (!resp.ok && isDataUrl(resp.url)) { console.warn('KGB shim: vervang fout', resp.url, resp.status); return ok('{}'); }
+        return resp;
+      }).catch(err=>{
+        const u = (typeof input==='string'? input : (input&&input.url)) || '';
+        if (isDataUrl(u)) { console.warn('KGB shim: netwerkfout', u, err); return ok('{}'); }
+        throw err;
+      });
+    };
+  }
+  // XMLHttpRequest()
+  (function(){
+    const X = window.XMLHttpRequest; if (!X) return;
+    const P = X.prototype, open = P.open, send = P.send;
+    P.open = function(m,u){ this.__kgb_url = u; return open.apply(this, arguments); };
+    P.send = function(){
+      if (isDataUrl(this.__kgb_url)) {
+        this.addEventListener('load', ()=>{ if (this.status>=400) { try{ Object.defineProperty(this,'status',{value:200}); }catch(_){ } this.responseText='{}'; }});
+        this.addEventListener('error', ()=>{ try{
+          this.responseText='{}'; this.readyState=4; try{ Object.defineProperty(this,'status',{value:200}); }catch(_){}
+          this.dispatchEvent(new Event('readystatechange')); this.dispatchEvent(new Event('load'));
+        }catch(_){ }});
+      }
+      return send.apply(this, arguments);
+    };
+  })();
+  console.log('KGB fetch-shim actief');
+})();
+</script>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>KGB — Safe loader</title>
+  <style>
+    html,body{height:100%;margin:0}
+    #bar{position:fixed;left:8px;bottom:8px;z-index:2147483647;background:#111;color:#0f0;
+         font:12px/1.25 -apple-system,Segoe UI,Arial,sans-serif;border:1px solid #0f0;
+         border-radius:8px;padding:6px 8px}
+    #bar button{margin-left:6px;padding:4px 8px;border:1px solid #0f0;background:#000;color:#0f0;border-radius:6px;cursor:pointer}
+    iframe{position:fixed;inset:0;border:0;width:100%;height:100%}
+  </style>
+</head>
+<body>
+  <iframe id="app" src="index_orig.html"></iframe>
+  <div id="bar">
+    Safe loader actief
+    <button id="reload">Herlaad</button>
+    <button id="fix">Repareer klikken</button>
+    <a id="open-orig" href="index_orig.html" style="color:#9f9;text-decoration:underline;margin-left:6px">Open originele app</a>
+  </div>
+  <script>
+    (function(){
+      const iframe = document.getElementById('app');
+      const log = (...a)=>console.log('[SAFE]', ...a);
+
+      function killInside(doc){
+        try{
+          // 1) Unfreeze
+          doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+          doc.querySelectorAll('dialog[open]').forEach(d=>{ try{ d.close(); }catch(_){} });
+          doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+
+          // 2) Neutraliseer fullscreen overlays
+          const vw = doc.defaultView.innerWidth || 1, vh = doc.defaultView.innerHeight || 1;
+          const A = vw*vh;
+          const pts=[[vw/2,vh/2],[6,6],[vw-6,6],[6,vh-6],[vw-6,vh-6]];
+          const seen = new Set(), cands=[];
+          for(const [x,y] of pts){
+            const list = doc.elementsFromPoint ? doc.elementsFromPoint(x,y) : [];
+            for(const el of list){
+              if(!el || seen.has(el)) continue; seen.add(el);
+              const cs = doc.defaultView.getComputedStyle(el); if(!cs) continue;
+              const r = el.getBoundingClientRect(); if(!r) continue;
+              const ratio = (Math.max(0,r.width)*Math.max(0,r.height))/A;
+              const zi = parseInt(cs.zIndex||'0')||0;
+              const looks = ratio>0.70 ||
+                ((r.top<=2 && r.left<=2 && r.width>=vw*0.98 && r.height>=vh*0.90) && zi>=5) ||
+                /\b(backdrop|overlay|modal|scrim|blocker)\b/i.test(el.className||'') ||
+                (el.tagName==='IFRAME' && ratio>0.50);
+              if (looks) cands.push(el);
+            }
+          }
+          const uniq=[]; const s2=new Set(); for(const el of cands){ if(!s2.has(el)){ uniq.push(el); s2.add(el);} }
+          for(const el of uniq){
+            try{
+              if (el.tagName==='IFRAME'){ el.style.pointerEvents='none'; el.style.visibility='hidden'; }
+              el.style.pointerEvents='none';
+              el.style.background='transparent';
+              el.style.backdropFilter='none';
+              el.removeAttribute('inert');
+              log('overlay disabled inside iframe:', el.tagName, el.className);
+            }catch(_){}
+          }
+
+          // 3) Maak UI klikbaar
+          const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+          doc.querySelectorAll(sel).forEach(el=>{
+            const cs = doc.defaultView.getComputedStyle(el);
+            if (cs.pointerEvents==='none') el.style.pointerEvents='auto';
+          });
+          (doc.getElementById('root')||doc.getElementById('app')||doc.body).style.pointerEvents='auto';
+        }catch(e){ log('fix error', e); }
+      }
+
+      function runFix(){
+        try{
+          const doc = iframe.contentDocument;
+          if (!doc) return;
+          killInside(doc);
+        }catch(e){ log('cross-origin?', e); }
+      }
+
+      iframe.addEventListener('load', ()=>{
+        // poging bij load + retries + observer
+        runFix();
+        setTimeout(runFix, 300);
+        setTimeout(runFix, 1200);
+        try{
+          const d = iframe.contentDocument;
+          const mo = new MutationObserver(()=> runFix());
+          mo.observe(d.documentElement||d.body, {subtree:true,childList:true,attributes:true});
+        }catch(e){}
+      });
+
+      document.getElementById('fix').onclick = ()=> runFix();
+      document.getElementById('reload').onclick = ()=> { iframe.src = 'index_orig.html?v=' + Date.now(); };
+    })();
+  </script>
+</body>
+</html>

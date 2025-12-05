@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  html,body{margin:0;height:100%;background:transparent}
+  .box{height:100%;width:100%;display:grid;place-items:center}
+  img{height:90vmin;width:90vmin;object-fit:contain}
+</style>
+<div class="box"><img id="icon" alt="icon"></div>
+<script>
+  const q=new URLSearchParams(location.search);
+  document.getElementById('icon').src = q.get('svg');
+</script>
