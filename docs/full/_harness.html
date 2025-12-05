@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KGB – Debug harnas</title>
+<style>
+  body{margin:0;font:14px/1.4 -apple-system,Segoe UI,Arial,sans-serif;background:#f4f6f8}
+  .bar{position:sticky;top:0;z-index:5;background:#0b132b;color:#e6fff2;padding:10px;border-bottom:1px solid #0e7952}
+  .bar button{margin-right:8px;padding:8px 10px;border-radius:10px;border:1px solid #1bd97b;background:#0f5132;color:#e6fff2;cursor:pointer}
+  .bar small{opacity:.8}
+  iframe{width:100%;height:88vh;border:0;background:white}
+  #log{white-space:pre-wrap;background:#111;color:#0f0;padding:8px;margin:0;border-top:1px solid #333;max-height:20vh;overflow:auto}
+</style>
+<div class="bar">
+  <button id="unlock">Ontgrendel UI</button>
+  <button id="demo">Klik “Demo-data”</button>
+  <button id="reset">Hard reset</button>
+  <small>Gebruik deze knoppen als klikken niet reageert.</small>
+</div>
+<iframe id="app" src="./"></iframe>
+<pre id="log"></pre>
+<script>
+const I = document.getElementById('app');
+const L = document.getElementById('log');
+const log = (...a)=>{ L.textContent = '['+new Date().toLocaleTimeString()+'] '+a.join(' ')+'\n'+L.textContent; };
+
+function inFrame(fn){
+  const w = I.contentWindow; const d = I.contentDocument || (w && w.document);
+  if (!w || !d) { alert('Frame nog niet geladen'); return null; }
+  return fn(w, d);
+}
+
+function injectHelpers(w, d){
+  try{
+    if (w.__KGB_HELPERS__) return;
+    w.__KGB_HELPERS__ = true;
+
+    w.KGB_unlock = function(doc){
+      doc = doc || w.document;
+      try{
+        doc.querySelectorAll('[inert]').forEach(el=>el.removeAttribute('inert'));
+        doc.querySelectorAll('dialog[open]').forEach(el=>{ try{ el.close(); }catch(_){ } });
+        doc.querySelectorAll('[aria-modal="true"]').forEach(el=>el.removeAttribute('aria-modal'));
+        (doc.getElementById('root')||doc.getElementById('app')||doc.querySelector('main')||doc.body).style.pointerEvents='auto';
+        const sel='a,button,input,select,textarea,summary,[role="button"],[role="link"],[role="tab"],[onclick],[tabindex]';
+        doc.querySelectorAll(sel).forEach(el=>{ try{
+          el.disabled=false; el.removeAttribute('disabled');
+          const cs = (doc.defaultView||w).getComputedStyle(el);
+          if (cs && cs.pointerEvents==='none') el.style.pointerEvents='auto';
+        }catch(_){ }});
+        // overlays/loader veel-voorkomende
+        const olSel=['.overlay','.backdrop','.modal','.scrim','.spinner','.loading','.preloader','#overlay','#backdrop','#modal','#spinner','#loading','[data-loading]','[data-blocker]','[role="dialog"]'];
+        olSel.forEach(s=>{ try{ doc.querySelectorAll(s).forEach(el=>{ el.style.display='none'; el.style.pointerEvents='none'; el.removeAttribute('inert'); }); }catch(_){} });
+      }catch(_){}
+      try{ doc.querySelectorAll('*').forEach(el=>{ const sh = el.shadowRoot; if (sh) w.KGB_unlock(sh); }); }catch(_){}
+    };
+
+    w.KGB_clickByText = function(txt){
+      const doc = w.document;
+      const match = el =>
+        el && /^(button|a)$/i.test(el.tagName) &&
+        (el.textContent||'').trim().toLowerCase().includes(txt.toLowerCase());
+      let target = null;
+      doc.querySelectorAll('button,a').forEach(el=>{ if(!target && match(el)) target = el; });
+      if (!target) { return false; }
+      try{ target.focus(); }catch(_){}
+      try{
+        target.click();
+        const ev = new w.MouseEvent('click',{bubbles:true,cancelable:true,view:w});
+        target.dispatchEvent(ev);
+      }catch(_){}
+      return true;
+    };
+
+    w.KGB_hardReset = async function(){
+      try{ if('serviceWorker' in w.navigator){ const rs = await w.navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); } }catch(_){}
+      try{ if(w.caches && w.caches.keys){ const ks = await w.caches.keys(); await Promise.all(ks.map(k=>w.caches.delete(k))); } }catch(_){}
+      w.location.reload();
+    };
+  }catch(e){ log('inject error:', e.message); }
+}
+
+document.getElementById('unlock').onclick = ()=> inFrame((w,d)=>{ injectHelpers(w,d); w.KGB_unlock(d); log('UI ontgrendeld'); });
+document.getElementById('demo').onclick   = ()=> inFrame((w,d)=>{ injectHelpers(w,d); const ok=w.KGB_clickByText('Demo-data'); log(ok?'Demo-data geklikt':'Demo-data knop niet gevonden'); });
+document.getElementById('reset').onclick  = ()=> inFrame((w,d)=>{ injectHelpers(w,d); w.KGB_hardReset(); log('Hard reset uitgevoerd…'); });
+
+I.addEventListener('load', ()=>{ log('Frame geladen:', I.src); try{ injectHelpers(I.contentWindow, I.contentDocument); }catch(_){} });
+</script>
