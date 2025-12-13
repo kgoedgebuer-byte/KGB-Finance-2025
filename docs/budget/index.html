@@ -4,7 +4,6 @@
   <script src="../common/year_partition.js?v=1764956526"></script>
   <link rel="icon" href="/KGB-Finance-2025/icons/kgb-green-v2.svg" type="image/svg+xml" sizes="any">
   <meta name="theme-color" content="#19C37D"><style id="web-boot-style">
-  html,body,#root,#app,main{pointer-events:auto !important}
 </style>
 <script id="web-boot">
 (function(){
@@ -26,13 +25,11 @@
   setTimeout(()=>unlock(document),150); setTimeout(()=>unlock(document),400);
 })();
 </script>
-<script id="web-drive-off">
 (function(){
   function disableDrive(root){
     try{
       Array.from(root.querySelectorAll('a,button')).forEach(el=>{
         const t=(el.textContent||'').trim().toLowerCase();
-        if (t==='drive' || t.startsWith('drive ')){
           el.textContent='Drive (uit)'; el.setAttribute('aria-disabled','true');
           el.style.pointerEvents='none'; el.style.opacity='0.5';
         }
@@ -157,5 +154,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script></body>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script><script src="../common/storage_core.js"></script>
+</body>
 </html>

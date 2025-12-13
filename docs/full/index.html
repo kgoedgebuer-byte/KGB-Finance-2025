@@ -2,7 +2,6 @@
 <html lang="nl">
 <head>
   <script src="../common/year_partition.js?v=1764956526"></script>
-  <link rel="icon" href="/KGB-Finance-2025/icons/kgb-blue-v2.svg" type="image/svg+xml" sizes="any">
   <meta name="theme-color" content="#2F7CFB"><link rel="stylesheet" href="styles.css">
 
 
@@ -57,7 +56,6 @@
         if (!res.ok && isDataJson(input)){
           // lever minimale defaults zodat app niet blijft wachten
           if (String(input).includes('settings.json')) {
-            return safeJsonResponse({ year: new Date().getFullYear(), tabs: ["Overzicht","Transacties"], drive:false });
           }
           return safeJsonResponse({}); // generieke lege JSON
         }
@@ -252,5 +250,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => void 0 && navigator.serviceWorker.register('./service-worker.js'));
 }
 </script>
-<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script></body>
+<script>if('serviceWorker' in navigator){void 0 && navigator.serviceWorker.register('./sw.js',{scope:'./'});}</script><script src="../common/storage_core.js"></script>
+</body>
 </html>
