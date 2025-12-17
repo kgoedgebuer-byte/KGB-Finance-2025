@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>KGB Finance 2025 — Budget</title>
+
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="./app.js"></script>
+
+  <style>
+    /* mini-fix zodat jaar netjes achter de tabs staat */
+    .tabs { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .yearWrap { display:flex; align-items:center; gap:8px; margin-left:6px; }
+    .yearWrap select { padding:6px 10px; border-radius:10px; }
+  </style>
+</head>
+
+<body>
+<header class="bar">
+  <h1>💰 KGB Finance 2025 — Budget</h1>
+
+  <nav class="tabs">
+    <button data-tab="dashboard" class="tab active" type="button">Dashboard</button>
+    <button data-tab="budget" class="tab" type="button">Budget</button>
+    <button data-tab="theme" class="tab" type="button">Thema</button>
+
+    <!-- Jaar staat achter de knoppen -->
+    <span class="yearWrap">
+      <strong>Jaar:</strong>
+      <select id="yearSelect" aria-label="Jaar kiezen"></select>
+    </span>
+  </nav>
+</header>
+
+<main>
+  <section id="dashboard" class="panel active">
+    <div class="cards">
+      <div class="card"><div class="k">Inkomen</div><div class="v" id="totIncome">0,00</div></div>
+      <div class="card"><div class="k">Uitgave</div><div class="v" id="totExpense">0,00</div></div>
+      <div class="card"><div class="k">Saldo</div><div class="v ok" id="totSaldo">0,00</div></div>
+    </div>
+
+    <div class="chartBar">
+      <div class="left">
+        <strong>Grafiek:</strong>
+        <label><input type="radio" name="ctype" value="line" checked> Lijn</label>
+        <label><input type="radio" name="ctype" value="bar"> Balk</label>
+        <label><input type="radio" name="ctype" value="pie"> Cirkel</label>
+      </div>
+      <div class="right">
+        <button id="btnDemo" type="button">Demo-data</button>
+        <button id="btnClear" type="button">Refresh</button>
+      </div>
+    </div>
+
+    <canvas id="saldoChart" height="160"></canvas>
+  </section>
+
+  <section id="budget" class="panel">
+    <h2>📋 Budget</h2>
+
+    <form id="addBudget" class="addForm">
+      <input id="b_date" type="date" required>
+      <input id="b_cat" type="text" placeholder="Categorie" required>
+      <input id="b_desc" type="text" placeholder="Omschrijving">
+      <input id="b_inc" type="number" step="0.01" inputmode="decimal" placeholder="Inkomen">
+      <input id="b_exp" type="number" step="0.01" inputmode="decimal" placeholder="Uitgave">
+      <button type="submit">➕ Toevoegen</button>
+    </form>
+
+    <div class="tableWrap">
+      <table id="tblBudget" class="grid">
+        <thead>
+          <tr>
+            <th>Datum</th><th>Categorie</th><th>Omschrijving</th>
+            <th>Inkomen</th><th>Uitgave</th><th>Saldo (loopt)</th><th>Acties</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="theme" class="panel">
+    <h2>🎨 Thema</h2>
+    <div class="themeBox">
+      <label>Onderdeel:
+        <select id="themeTarget">
+          <option value="bg">Achtergrond</option>
+          <option value="card">Kaarten/Tabel</option>
+          <option value="acc">Accent/Knoppen</option>
+          <option value="grid">Rasterlijnen</option>
+          <option value="txt">Tekst</option>
+        </select>
+      </label>
+
+      <div id="swatches" class="swatches"></div>
+
+      <div class="sliders">
+        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
+        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
+      </div>
+
+      <div class="themeBtns">
+        <button id="themeReset" type="button">Reset</button>
+        <button id="themeSave" type="button">Opslaan</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><small>© KGB Finance 2025</small></footer>
+
+<script>
+  // Jaar selector: GEEN sync, GEEN import/export, GEEN service worker
+  (function initYear() {
+    const sel = document.getElementById('yearSelect');
+    if (!sel) return;
+
+    const now = new Date().getFullYear();
+    const years = [];
+    for (let y = now - 3; y <= now + 3; y++) years.push(y);
+
+    const saved = Number(localStorage.getItem('kgb_year') || now);
+    sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    sel.value = String(saved);
+
+    // app.js kan deze sleutel gebruiken om per jaar data te scheiden
+    window.KGB_YEAR = saved;
+
+    sel.addEventListener('change', () => {
+      const y = Number(sel.value);
+      localStorage.setItem('kgb_year', String(y));
+      window.KGB_YEAR = y;
+      // evt. hook voor app.js als jij dat gebruikt
+      window.dispatchEvent(new CustomEvent('kgb-year-changed', { detail: { year: y }}));
+      // simpele refresh zodat alles opnieuw inlaadt met het nieuwe jaar
+      location.reload();
+    });
+  })();
+</script>
+
+</body>
+</html>
