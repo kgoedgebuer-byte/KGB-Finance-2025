@@ -1,34 +1,60 @@
-(function(){
-  function yearsList(){
-    try{
-      const j = JSON.parse(localStorage.getItem('kgb_years_list')||'[]');
-      if(Array.isArray(j) && j.length) return j;
-    }catch{}
-    const now=(new Date()).getFullYear();
-    const years=[]; for(let y=2020;y<=now;y++) years.push(y);
-    return years;
+(() => {
+  const YEARS_FROM = 2020;
+  const YEARS_TO   = 2050;
+
+  function pickSelect(){
+    return document.querySelector('#yearSelect, #year, select[name="year"], select[data-year]')
+        || document.querySelector('select'); // fallback (laatste redmiddel)
   }
-  function getActiveYear(){
-    const keys=['kgb_year','kgb_view_year','kgb_selected_year','kgb_active_year','kgb_finance_year','kgb_year_filter'];
-    for(const k of keys){ const v=localStorage.getItem(k); if(v&&/^\d{4}$/.test(v)) return +v; }
-    return (new Date()).getFullYear();
+
+  function getStored(){
+    const keys = ['kgb_year','activeYear','kgb_finance_year'];
+    for(const k of keys){
+      const v = localStorage.getItem(k);
+      if(v && /^\d{4}$/.test(v)) return +v;
+    }
+    return null;
   }
-  function setYear(y){
-    const keys=['kgb_year','kgb_view_year','kgb_selected_year','kgb_active_year','kgb_finance_year','kgb_year_filter'];
-    keys.forEach(k=>localStorage.setItem(k,String(y)));
-    location.reload();
+
+  function storeYear(y){
+    localStorage.setItem('kgb_year', String(y));
+    localStorage.setItem('activeYear', String(y));
+    localStorage.setItem('kgb_finance_year', String(y));
   }
-  function mount(){
-    if(document.getElementById('kgb-year-ctl')) return;
-    const wrap=document.createElement('div');
-    wrap.id='kgb-year-ctl';
-    wrap.style.cssText='position:fixed;top:10px;left:10px;z-index:9996;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px 8px;box-shadow:0 6px 18px rgba(2,6,23,.12);display:flex;gap:6px;align-items:center';
-    const lab=document.createElement('span'); lab.textContent='Jaar:'; lab.style.color='#334155'; lab.style.fontSize='12px';
-    const sel=document.createElement('select'); sel.style.cssText='padding:6px;border:1px solid #e5e7eb;border-radius:8px';
-    const yrs=yearsList(); const act=getActiveYear();
-    yrs.forEach(y=>{ const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); if(y===act) o.selected=true; sel.appendChild(o); });
-    sel.onchange=()=>setYear(+sel.value);
-    wrap.append(lab,sel); document.body.appendChild(wrap);
+
+  function applyYear(y){
+    window.activeYear = y;
+    if(typeof window.refresh === 'function') window.refresh();
+    window.dispatchEvent(new CustomEvent('kgb:year', { detail: { year: y }}));
   }
-  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', mount); } else { mount(); }
+
+  function build(){
+    const sel = pickSelect();
+    if(!sel) return;
+
+    const current = getStored() || (new Date()).getFullYear();
+    sel.innerHTML = '';
+    for(let y = YEARS_FROM; y <= YEARS_TO; y++){
+      const opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = String(y);
+      if(y === current) opt.selected = true;
+      sel.appendChild(opt);
+    }
+
+    storeYear(+sel.value);
+    applyYear(+sel.value);
+
+    sel.addEventListener('change', () => {
+      const y = +sel.value;
+      storeYear(y);
+      applyYear(y);
+    });
+  }
+
+  if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', build);
+  } else {
+    build();
+  }
 })();
