@@ -88,29 +88,32 @@
     <h2>🎨 Thema</h2>
 
     <div class="themeBox">
-      <label>Onderdeel:
-        <select id="themeTarget">
+  <label>Jaar:
+    <select id="yearSelect"></select>
+  </label>
 
-          <option value="bg">Achtergrond</option>
-          <option value="card">Kaarten/Tabel</option>
-          <option value="acc">Accent/Knoppen</option>
-          <option value="grid">Rasterlijnen</option>
-          <option value="txt">Tekst</option>
-        </select>
-      </label>
+  <label>Onderdeel:
+    <select id="themeTarget">
+      <option value="bg">Achtergrond</option>
+<option value="card">Kaarten/Tabel</option>
+<option value="acc">Accent/Knoppen</option>
+<option value="grid">Rasterlijnen</option>
+<option value="txt">Tekst</option>
+    </select>
+  </label>
 
-      <div id="swatches" class="swatches"></div>
+  <div id="swatches" class="swatches"></div>
 
-      <div class="sliders">
-        <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
-        <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
-      </div>
+  <div class="sliders">
+    <label>Intensiteit <input id="intensity" type="range" min="50" max="150" value="100"></label>
+    <label>Raster <input id="gridIntensity" type="range" min="50" max="150" value="100"></label>
+  </div>
 
-      <div class="themeBtns">
-        <button type="button" id="themeReset">Reset</button>
-        <button type="button" id="themeSave">Opslaan</button>
-      </div>
-    </div>
+  <div class="themeBtns">
+    <button id="themeReset" type="button">Reset</button>
+    <button id="themeSave" type="button">Opslaan</button>
+  </div>
+</div>
   </section>
 </main>
 
