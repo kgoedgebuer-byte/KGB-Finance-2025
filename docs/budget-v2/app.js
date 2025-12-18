@@ -128,3 +128,5 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 }))
 
 ensure(); refresh();
+
+try{buildSwatches();}catch(_){ }
