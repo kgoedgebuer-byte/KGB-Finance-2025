@@ -92,42 +92,54 @@ function renderBudget(){
   });
 }
 
+
 function renderInvest(){
-  const tbl=$("#tblInvest"); if(!tbl) return;
-  const tb=$("#tblInvest tbody"); if(!tb) return;
-  tb.innerHTML="";
-  state.investments.forEach((r,i)=>{
-    tb.appendChild(tr(
-      `<td><input type="date" value="${r.date||""}" data-k="date" data-i="${i}"></td>`,
-      `<td><input type="text"  value="${r.name||""}" data-k="name" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.0001" value="${r.qty??""}" data-k="qty" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.01" value="${r.buy??""}" data-k="buy" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.01" value="${r.sell??""}" data-k="sell" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.01" value="${r.div??""}" data-k="div" data-i="${i}"></td>`,
-      `<td>${fmt(r.profit||0)}</td>`,
-      `<td>${fmt(r.loss||0)}</td>`,
-      actionBtns(i)
-    ));
-  });
+  const tb = document.querySelector('#tblInvest tbody');
+  if(!tb) return;
+  tb.innerHTML = '';
+  state.investments
+    .filter(r => yearOf(r.date) === activeYear)
+    .forEach((r,i)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="date" value="${r.date||''}" data-k="date" data-i="${i}"></td>
+        <td><input type="text" value="${r.name||''}" data-k="name" data-i="${i}"></td>
+        <td><input type="number" step="0.0001" value="${r.qty||''}" data-k="qty" data-i="${i}"></td>
+        <td><input type="number" step="0.01" value="${r.buy||''}" data-k="buy" data-i="${i}"></td>
+        <td><input type="number" step="0.01" value="${r.sell||''}" data-k="sell" data-i="${i}"></td>
+        <td><input type="number" step="0.01" value="${r.div||''}" data-k="div" data-i="${i}"></td>
+        <td>${fmt(r.profit||0)}</td>
+        <td>${fmt(r.loss||0)}</td>
+        ${actionBtns(i)}
+      `;
+      tb.appendChild(tr);
+    });
 }
 
+
+
 function renderCrypto(){
-  const tbl=$("#tblCrypto"); if(!tbl) return;
-  const tb=$("#tblCrypto tbody"); if(!tb) return;
-  tb.innerHTML="";
-  state.crypto.forEach((r,i)=>{
-    tb.appendChild(tr(
-      `<td><input type="date" value="${r.date||""}" data-k="date" data-i="${i}"></td>`,
-      `<td><input type="text"  value="${r.token||""}" data-k="token" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.0001" value="${r.qty??""}" data-k="qty" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.01" value="${r.buy??""}" data-k="buy" data-i="${i}"></td>`,
-      `<td><input type="number" step="0.01" value="${r.sell??""}" data-k="sell" data-i="${i}"></td>`,
-      `<td>${fmt(r.profit||0)}</td>`,
-      `<td>${fmt(r.loss||0)}</td>`,
-      actionBtns(i)
-    ));
-  });
+  const tb = document.querySelector('#tblCrypto tbody');
+  if(!tb) return;
+  tb.innerHTML = '';
+  state.crypto
+    .filter(r => yearOf(r.date) === activeYear)
+    .forEach((r,i)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="date" value="${r.date||''}" data-k="date" data-i="${i}"></td>
+        <td><input type="text" value="${r.token||''}" data-k="token" data-i="${i}"></td>
+        <td><input type="number" step="0.0001" value="${r.qty||''}" data-k="qty" data-i="${i}"></td>
+        <td><input type="number" step="0.01" value="${r.buy||''}" data-k="buy" data-i="${i}"></td>
+        <td><input type="number" step="0.01" value="${r.sell||''}" data-k="sell" data-i="${i}"></td>
+        <td>${fmt(r.profit||0)}</td>
+        <td>${fmt(r.loss||0)}</td>
+        ${actionBtns(i)}
+      `;
+      tb.appendChild(tr);
+    });
 }
+
 
 function renderAgenda(){
   const tbl=$("#tblAgenda"); if(!tbl) return;
