@@ -347,5 +347,169 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+
+<script>
+/* KGB_THEME_PICKER_FIX_V4 */
+(() => {
+  const THEME_KEY = "kgb_finance_theme_v1";
+  const def = {bg:"#f5f7ff",card:"#ffffff",acc:"#7c9cf5",txt:"#0f172a",grid:"#e2e8f0",intensity:100,gridIntensity:100};
+  const $ = (s, c=document) => c.querySelector(s);
+
+  function colToRgb(hex){
+    hex=(hex||"").replace('#','');
+    if(hex.length===3) hex=hex.split('').map(x=>x+x).join('');
+    const n=parseInt(hex,16);
+    return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+  }
+  function adjust(hex,f){
+    const {r,g,b}=colToRgb(hex);
+    const adj=(v)=>Math.max(0,Math.min(255, Math.round(v*(f/100))));
+    return `rgb(${adj(r)}, ${adj(g)}, ${adj(b)})`;
+  }
+  function applyTheme(t){
+    const root = document.documentElement;
+    root.style.setProperty('--bg',   adjust(t.bg,   t.intensity||100));
+    root.style.setProperty('--card', adjust(t.card, t.intensity||100));
+    root.style.setProperty('--acc',  adjust(t.acc,  t.intensity||100));
+    root.style.setProperty('--grid', adjust(t.grid, t.gridIntensity||100));
+    root.style.setProperty('--txt',  t.txt || "#0f172a");
+  }
+  function load(){
+    try { return JSON.parse(localStorage.getItem(THEME_KEY)||"null") || {...def}; }
+    catch { return {...def}; }
+  }
+  function save(t){ localStorage.setItem(THEME_KEY, JSON.stringify(t)); }
+
+  // Vind de "Thema" sectie (container waar het echte thema-paneel in zit)
+  function findThemeAnchor(){
+    const h = Array.from(document.querySelectorAll("h1,h2,h3"))
+      .find(x => (x.textContent||"").trim().toLowerCase() === "thema");
+    if (!h) return null;
+    // neem de dichtste card/panel/section rond die heading
+    return h.closest("section,.card,.panel,main") || h.parentElement;
+  }
+
+  // Toon alleen als Thema zichtbaar is (als anchor in layout zit)
+  function isVisible(el){
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && el.offsetParent !== null;
+  }
+
+  function placePicker(){
+    const picker = $("#kgbThemePicker");
+    if (!picker) return;
+
+    const anchor = findThemeAnchor();
+    if (!anchor) return;
+
+    // Zorg dat picker NA de bestaande thema-controls staat
+    // (dus in dezelfde sectie)
+    if (picker.parentElement !== anchor) {
+      anchor.appendChild(picker);
+    }
+
+    picker.style.display = isVisible(anchor) ? "block" : "none";
+  }
+
+  function bindLiveControls(){
+    const picker = $("#kgbThemePicker");
+    if (!picker) return;
+
+    // onze controls
+    const target = $("#kgbTarget");
+    const color  = $("#kgbColor");
+    const label  = $("#kgbColorValue");
+    const btnSave = $("#kgbSave");
+    const btnReset = $("#kgbReset");
+    const btnApply = $("#kgbApply");
+    const swatches = $("#kgbSwatches");
+
+    if (!target || !color) return;
+
+    let t = load();
+    applyTheme(t);
+
+    function currentForPart(part){
+      if (part === "bg") return t.bg;
+      if (part === "card") return t.card;
+      if (part === "acc") return t.acc;
+      if (part === "grid") return t.grid;
+      return t.txt;
+    }
+
+    function setPart(part, hex){
+      if (part === "bg") t.bg = hex;
+      else if (part === "card") t.card = hex;
+      else if (part === "acc") t.acc = hex;
+      else if (part === "grid") t.grid = hex;
+      else t.txt = hex;
+      applyTheme(t);
+      if (label) label.textContent = (hex || "").toUpperCase();
+    }
+
+    function syncUI(){
+      // zet picker op opgeslagen kleur van gekozen onderdeel
+      const part = target.value;
+      const hex = currentForPart(part) || color.value;
+      if (hex) color.value = hex;
+      if (label) label.textContent = (color.value || "").toUpperCase();
+    }
+
+    // LIVE: elke kleurwijziging meteen toepassen
+    function onColorInput(){
+      setPart(target.value, color.value);
+    }
+
+    // LIVE: swatch klik => meteen toepassen
+    if (swatches && !swatches.dataset.kgbBound){
+      swatches.dataset.kgbBound = "1";
+      swatches.addEventListener("click", (e) => {
+        const b = e.target.closest("button.swatch");
+        if (!b) return;
+        // background kan rgb(...) zijn; gebruik title als hex (die is gezet)
+        const hex = b.title || color.value;
+        color.value = hex;
+        setPart(target.value, hex);
+      });
+    }
+
+    // Kleur kiezen
+    color.addEventListener("input", onColorInput);
+    color.addEventListener("change", onColorInput);
+
+    // Onderdeel veranderen => kleurknop springt mee
+    target.addEventListener("change", syncUI);
+
+    // Buttons (fallback)
+    if (btnApply) btnApply.addEventListener("click", onColorInput);
+    if (btnSave)  btnSave.addEventListener("click", () => { save(t); alert("Thema opgeslagen."); });
+    if (btnReset) btnReset.addEventListener("click", () => { t = {...def}; applyTheme(t); syncUI(); });
+
+    // init
+    syncUI();
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    // 1) zet picker op de juiste plaats + alleen tonen op thema
+    placePicker();
+    // 2) bind live gedrag
+    bindLiveControls();
+
+    // Re-check bij tab clicks (Dashboard/Budget/Thema)
+    document.addEventListener("click", (e) => {
+      const txt = (e.target?.textContent || "").trim().toLowerCase();
+      if (txt === "dashboard" || txt === "budget" || txt === "thema") {
+        setTimeout(placePicker, 60);
+      }
+    });
+
+    // Extra zekerheid: na render/updates nog eens
+    setTimeout(placePicker, 300);
+    setTimeout(placePicker, 800);
+  });
+})();
+</script>
+
 </body>
 </html>
