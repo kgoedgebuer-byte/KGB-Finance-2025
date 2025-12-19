@@ -511,5 +511,163 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+
+<script>
+/* KGB_THEME_MANAGER_V5 */
+(() => {
+  const THEME_KEY = "kgb_finance_theme_v1";
+  const def = {bg:"#f5f7ff",card:"#ffffff",acc:"#7c9cf5",txt:"#0f172a",grid:"#e2e8f0",intensity:100,gridIntensity:100};
+
+  const $  = (s,c=document)=>c.querySelector(s);
+  const $$ = (s,c=document)=>Array.from(c.querySelectorAll(s));
+
+  function colToRgb(hex){
+    hex=(hex||"").replace('#','');
+    if(hex.length===3) hex=hex.split('').map(x=>x+x).join('');
+    const n=parseInt(hex,16);
+    return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+  }
+  function adjust(hex,f){
+    const {r,g,b}=colToRgb(hex);
+    const adj=(v)=>Math.max(0,Math.min(255, Math.round(v*(f/100))));
+    return `rgb(${adj(r)}, ${adj(g)}, ${adj(b)})`;
+  }
+
+  function load(){
+    try { return JSON.parse(localStorage.getItem(THEME_KEY)||"null") || {...def}; }
+    catch { return {...def}; }
+  }
+  function save(t){ localStorage.setItem(THEME_KEY, JSON.stringify(t)); }
+
+  function applyTheme(t){
+    const root = document.documentElement;
+    root.style.setProperty('--bg',   adjust(t.bg,   t.intensity||100));
+    root.style.setProperty('--card', adjust(t.card, t.intensity||100));
+    root.style.setProperty('--acc',  adjust(t.acc,  t.intensity||100));
+    root.style.setProperty('--grid', adjust(t.grid, t.gridIntensity||100));
+    root.style.setProperty('--txt',  t.txt || "#0f172a");
+  }
+
+  // Detecteer actieve tab en zet body attribuut => CSS kan picker tonen/verbergen
+  function setTab(tab){
+    document.body.setAttribute("data-kgb-tab", tab);
+  }
+
+  function detectTab(){
+    // probeert actief knopje te vinden
+    const buttons = $$("a,button");
+    const norm = s => (s||"").trim().toLowerCase();
+
+    // 1) actief via class/aria-current
+    for (const b of buttons){
+      const txt = norm(b.textContent);
+      if (txt !== "dashboard" && txt !== "budget" && txt !== "thema") continue;
+      const cls = norm(b.className);
+      if (cls.includes("active") || cls.includes("selected") || b.getAttribute("aria-current")==="page") return txt;
+    }
+
+    // 2) fallback: kijk welke H2 zichtbaar is
+    const hTheme = $$("h1,h2,h3").find(x => norm(x.textContent)==="thema");
+    const hBudget = $$("h1,h2,h3").find(x => norm(x.textContent)==="budget");
+    const vis = el => {
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.width>0 && r.height>0 && el.offsetParent!==null;
+    };
+    if (vis(hTheme)) return "thema";
+    if (vis(hBudget)) return "budget";
+    return "dashboard";
+  }
+
+  // Bind de bestaande sliders (bovenste thema-paneel) zodat intensity/raster live werken
+  function bindTopThemeSliders(){
+    const hTheme = $$("h1,h2,h3").find(x => (x.textContent||"").trim().toLowerCase()==="thema");
+    if (!hTheme) return;
+    const area = hTheme.closest("section,.card,.panel,main") || document;
+
+    // pak de eerste 2 range inputs binnen thema-blok
+    const ranges = $$('input[type="range"]', area);
+    if (ranges.length < 2) return;
+
+    const intensity = ranges[0];
+    const gridInt   = ranges[1];
+
+    // geef ids als ze ontbreken (maar conflictvrij)
+    if (!intensity.id) intensity.id = "kgbIntensityTop";
+    if (!gridInt.id)   gridInt.id   = "kgbGridTop";
+
+    const t = load();
+    // zet startwaarden (als sliders 0..100)
+    if (intensity.max) intensity.value = t.intensity ?? 100;
+    if (gridInt.max)   gridInt.value   = t.gridIntensity ?? 100;
+
+    const onInt = () => {
+      const tt = load();
+      tt.intensity = +intensity.value || 100;
+      applyTheme(tt);
+      save(tt);
+    };
+    const onGrid = () => {
+      const tt = load();
+      tt.gridIntensity = +gridInt.value || 100;
+      applyTheme(tt);
+      save(tt);
+    };
+
+    intensity.addEventListener("input", onInt);
+    intensity.addEventListener("change", onInt);
+    gridInt.addEventListener("input", onGrid);
+    gridInt.addEventListener("change", onGrid);
+  }
+
+  // Fix: kleurknop altijd syncen met gekozen onderdeel in jouw extra picker
+  function fixPickerColorButton(){
+    const picker = $("#kgbThemePicker");
+    if (!picker) return;
+
+    const target = $("#kgbTarget");
+    const color  = $("#kgbColor");
+    if (!target || !color) return;
+
+    const getPart = (t, p) =>
+      p==="bg"?t.bg : p==="card"?t.card : p==="acc"?t.acc : p==="grid"?t.grid : t.txt;
+
+    const sync = () => {
+      const t = load();
+      const hex = getPart(t, target.value) || "#7c9cf5";
+      color.value = hex;
+    };
+
+    target.addEventListener("change", sync);
+    sync();
+  }
+
+  function refresh(){
+    const tab = detectTab();
+    setTab(tab === "thema" ? "theme" : tab); // CSS verwacht "theme"
+    const t = load();
+    applyTheme(t);
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    refresh();
+    bindTopThemeSliders();
+    fixPickerColorButton();
+
+    // bij tab-clicks opnieuw evalueren
+    document.addEventListener("click", (e) => {
+      const txt = ((e.target?.textContent)||"").trim().toLowerCase();
+      if (txt==="dashboard" || txt==="budget" || txt==="thema"){
+        setTimeout(refresh, 60);
+      }
+    });
+
+    // safety re-run
+    setTimeout(refresh, 250);
+    setTimeout(refresh, 900);
+  });
+})();
+</script>
+
 </body>
 </html>

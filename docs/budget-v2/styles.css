@@ -60,3 +60,26 @@ a{color:var(--acc)!important;}
 .kgb-theme-only{display:none;}
 .kgb-theme-only.is-visible{display:block;}
 .kgb-color-value{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;font-size:12px;opacity:.75;}
+
+/* KGB_THEME_FIX_V5_CSS */
+
+/* Toon de extra picker enkel op Thema-tab */
+#kgbThemePicker{display:none;}
+body[data-kgb-tab="theme"] #kgbThemePicker{display:block;}
+
+/* Verberg de hex-code naast de knop (je wil die niet) */
+#kgbColorValue{display:none !important;}
+
+/* Zorg dat de kleurknop effectief de gekozen kleur toont (Safari/macOS) */
+input[type="color"]{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 44px;
+  height: 28px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--grid);
+  background: transparent !important;
+}
+input[type="color"]::-webkit-color-swatch-wrapper{padding:0;border-radius:10px;}
+input[type="color"]::-webkit-color-swatch{border:none;border-radius:10px;}
