@@ -90,3 +90,7 @@ a{color:var(--acc)!important;}
 
 .swatches{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0;}
 .swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--grid);cursor:pointer;}
+
+/* KGB_SWATCHES_VISIBILITY v1 */
+.swatches{display:flex;flex-wrap:wrap;gap:10px;padding:12px 0;}
+.swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--grid, #e2e8f0);cursor:pointer;}

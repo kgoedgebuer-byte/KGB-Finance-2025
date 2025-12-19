@@ -262,3 +262,121 @@ try{buildSwatches();}catch(_){ }
   });
 })();
 
+
+
+/* KGB_THEME_ENGINE_SAFE v1 */
+(() => {
+  try {
+    const THEME_KEY = "kgb_finance_theme_v1";
+    const pastel = ["#A0C4FF","#BDB2FF","#FFC6FF","#9BF6FF","#FDFFB6","#CAFFBF","#FFADAD","#FFD6A5","#E4C1F9","#CDEAC0","#B9FBC0","#FFD5C2","#F7DAD9","#E2ECE9","#E6CBA8","#E4C6A1","#E8AEB7","#A0CED9","#E8D7FF","#A3D5D3","#D9E8E3","#FFF3B0","#FFCFD2","#F1E3FF","#C8E7FF","#E3F8FF","#FFEEE8","#FFE3E3","#E5FFFB","#F6E6FF","#F9D8D6","#D7F9F1","#F8E8C6","#FBE7E1","#E0F7FA","#E8F5E9","#FFEBEE","#FFFDE7","#EDE7F6","#E3F2FD","#FCE4EC","#F3E5F5","#FFECB3","#D1C4E9","#BBDEFB","#C8E6C9","#F0F4C3","#DCEDC8"];
+    const def = {bg:"#f5f7ff",card:"#ffffff",acc:"#7c9cf5",txt:"#0f172a",grid:"#e2e8f0",intensity:100,gridIntensity:100};
+    const $ = (s, c=document) => c.querySelector(s);
+
+    function colToRgb(hex){
+      hex=(hex||"").replace('#','');
+      if(hex.length===3) hex=hex.split('').map(x=>x+x).join('');
+      const n=parseInt(hex,16);
+      return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+    }
+    function adjust(hex,f){
+      const {r,g,b}=colToRgb(hex);
+      const adj=(v)=>Math.max(0,Math.min(255, Math.round(v*(f/100))));
+      return `rgb(${adj(r)}, ${adj(g)}, ${adj(b)})`;
+    }
+    function load(){
+      try { return JSON.parse(localStorage.getItem(THEME_KEY)||"null") || {...def}; }
+      catch { return {...def}; }
+    }
+    function save(t){ localStorage.setItem(THEME_KEY, JSON.stringify(t)); }
+
+    function apply(t){
+      const root = document.documentElement;
+      root.style.setProperty('--bg',   adjust(t.bg,   t.intensity||100));
+      root.style.setProperty('--card', adjust(t.card, t.intensity||100));
+      root.style.setProperty('--acc',  adjust(t.acc,  t.intensity||100));
+      root.style.setProperty('--grid', adjust(t.grid, t.gridIntensity||100));
+      root.style.setProperty('--txt',  t.txt || "#0f172a");
+    }
+
+    function badge(msg){
+      let b = $("#kgbThemeBadge");
+      if (!b){
+        b = document.createElement("div");
+        b.id = "kgbThemeBadge";
+        b.style.cssText = "position:fixed;right:10px;bottom:10px;z-index:99999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.7);color:#fff;font:12px system-ui;";
+        document.body.appendChild(b);
+      }
+      b.textContent = msg;
+    }
+
+    function init(){
+      const t = load();
+      apply(t);
+
+      let box = $("#swatches");
+      if (!box){
+        box = document.createElement("div");
+        box.id = "swatches";
+        box.className = "swatches";
+        document.body.appendChild(box);
+      }
+
+      // swatches bouwen (eenmalig)
+      if (!box.dataset.built){
+        box.dataset.built = "1";
+        box.innerHTML = "";
+        pastel.forEach(c => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "swatch";
+          btn.style.background = c;
+          btn.title = c;
+          btn.addEventListener("click", () => {
+            // default: accent aanpassen als er geen target dropdown bestaat
+            const target = $("#themeTarget");
+            const part = target ? target.value : "acc";
+            if (part === "bg") t.bg = c;
+            else if (part === "card") t.card = c;
+            else if (part === "acc") t.acc = c;
+            else if (part === "grid") t.grid = c;
+            else t.txt = c;
+            apply(t);
+          });
+          box.appendChild(btn);
+        });
+      }
+
+      // sliders live (pak gewoon de 2 ranges op de pagina)
+      const ranges = Array.from(document.querySelectorAll('input[type="range"]'));
+      if (ranges[0]){
+        ranges[0].addEventListener("input", e => { t.intensity = +e.target.value || 100; apply(t); });
+        ranges[0].addEventListener("change", e => { t.intensity = +e.target.value || 100; apply(t); });
+      }
+      if (ranges[1]){
+        ranges[1].addEventListener("input", e => { t.gridIntensity = +e.target.value || 100; apply(t); });
+        ranges[1].addEventListener("change", e => { t.gridIntensity = +e.target.value || 100; apply(t); });
+      }
+
+      // knoppen opslaan/reset (eerste match op tekst)
+      const btns = Array.from(document.querySelectorAll("button"));
+      const resetBtn = btns.find(b => (b.textContent||"").trim().toLowerCase()==="reset");
+      const saveBtn  = btns.find(b => (b.textContent||"").trim().toLowerCase()==="opslaan");
+      if (resetBtn) resetBtn.addEventListener("click", () => { Object.assign(t, def); apply(t); });
+      if (saveBtn)  saveBtn.addEventListener("click", () => { save(t); alert("Thema opgeslagen."); });
+
+      badge("THEME OK ✅  swatches=" + (box.children?.length || 0));
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      init();
+      setTimeout(init, 300);
+    });
+  } catch (e) {
+    try {
+      const b = document.createElement("div");
+      b.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:99999;padding:8px 10px;border-radius:12px;background:#b00020;color:#fff;font:12px system-ui;";
+      b.textContent = "THEME ERROR: " + (e && e.message ? e.message : e);
+      document.body.appendChild(b);
+    } catch {}
+  }
+})();
