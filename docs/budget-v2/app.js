@@ -300,10 +300,10 @@ try{buildSwatches();}catch(_){ }
     }
 
     function badge(msg){
-      let b = $("#kgbThemeBadge");
+// [AUTO-DISABLED DEBUG BADGE]       let b = $("#kgbThemeBadge");
       if (!b){
         b = document.createElement("div");
-        b.id = "kgbThemeBadge";
+// [AUTO-DISABLED DEBUG BADGE]         b.id = "kgbThemeBadge";
         b.style.cssText = "position:fixed;right:10px;bottom:10px;z-index:99999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.7);color:#fff;font:12px system-ui;";
         document.body.appendChild(b);
       }
@@ -365,7 +365,7 @@ try{buildSwatches();}catch(_){ }
       if (resetBtn) resetBtn.addEventListener("click", () => { Object.assign(t, def); apply(t); });
       if (saveBtn)  saveBtn.addEventListener("click", () => { save(t); alert("Thema opgeslagen."); });
 
-      badge("THEME OK ✅  swatches=" + (box.children?.length || 0));
+// [AUTO-DISABLED DEBUG BADGE]       badge("THEME OK ✅  swatches=" + (box.children?.length || 0));
     }
 
     window.addEventListener("DOMContentLoaded", () => {
