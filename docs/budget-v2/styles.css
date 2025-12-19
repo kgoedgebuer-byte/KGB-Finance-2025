@@ -44,3 +44,14 @@ footer{padding:16px 20px;color:#64748b}
 .actions{display:flex;gap:6px}
 .actions button{padding:6px 10px}
 @media (max-width:980px){ .addForm{grid-template-columns:1fr 1fr} }
+
+/* KGB_THEME_VARS_APPLY v2 */
+:root{--bg:#f5f7ff;--card:#ffffff;--acc:#7c9cf5;--txt:#0f172a;--grid:#e2e8f0;}
+body{background:var(--bg)!important;color:var(--txt)!important;}
+header,.bar,.topbar{background:var(--card)!important;border-color:var(--grid)!important;}
+.card,.panel,main section{background:var(--card)!important;border:1px solid var(--grid)!important;}
+button{border-color:var(--grid)!important;}
+button.primary,.btn-primary{background:var(--acc)!important;color:white!important;}
+a{color:var(--acc)!important;}
+.swatches{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0;}
+.swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--grid);cursor:pointer;}

@@ -115,6 +115,99 @@
   </div>
 </div>
   </section>
+
+<!-- KGB_COLOR_PICKER_UI v1 -->
+<div class="kgb-theme-picker card" style="margin-top:12px;">
+  <div class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <label style="display:flex;gap:8px;align-items:center;">
+      <span>Onderdeel:</span>
+      <select id="kgbTarget" style="min-width:180px;">
+        <option value="bg">Achtergrond</option>
+        <option value="card">Kaarten/Tabel</option>
+        <option value="acc">Accent/Knoppen</option>
+        <option value="grid">Rasterlijnen</option>
+        <option value="txt">Tekst</option>
+      </select>
+    </label>
+    <label style="display:flex;gap:8px;align-items:center;">
+      <span>Kleur:</span>
+      <input id="kgbColor" type="color" value="#7c9cf5" />
+    </label>
+    <button id="kgbApply" type="button">Toepassen</button>
+    <button id="kgbSave" type="button">Opslaan</button>
+    <button id="kgbReset" type="button">Reset</button>
+  </div>
+
+  <div id="kgbSwatches" class="swatches" style="margin-top:10px;"></div>
+</div>
+
+<script>
+/* KGB_COLOR_PICKER_LOGIC v1 */
+(() => {
+  const THEME_KEY = "kgb_finance_theme_v1";
+  const pastel = ["#A0C4FF","#BDB2FF","#FFC6FF","#9BF6FF","#FDFFB6","#CAFFBF","#FFADAD","#FFD6A5","#E4C1F9","#CDEAC0","#B9FBC0","#FFD5C2","#F7DAD9","#E2ECE9","#E6CBA8","#E4C6A1","#E8AEB7","#A0CED9","#E8D7FF","#A3D5D3","#D9E8E3","#FFF3B0","#FFCFD2","#F1E3FF","#C8E7FF","#E3F8FF","#FFEEE8","#FFE3E3","#E5FFFB","#F6E6FF","#F9D8D6","#D7F9F1","#F8E8C6","#FBE7E1","#E0F7FA","#E8F5E9","#FFEBEE","#FFFDE7","#EDE7F6","#E3F2FD","#FCE4EC","#F3E5F5","#FFECB3","#D1C4E9","#BBDEFB","#C8E6C9","#F0F4C3","#DCEDC8"];
+  const def = {bg:"#f5f7ff",card:"#ffffff",acc:"#7c9cf5",txt:"#0f172a",grid:"#e2e8f0",intensity:100,gridIntensity:100};
+  const $ = (s) => document.querySelector(s);
+
+  function colToRgb(hex){hex=(hex||"").replace('#',''); if(hex.length===3) hex=hex.split('').map(x=>x+x).join(''); const n=parseInt(hex,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
+  function adjust(hex,f){const {r,g,b}=colToRgb(hex); const adj=(v)=>Math.max(0,Math.min(255, Math.round(v*(f/100)))); return `rgb(${adj(r)}, ${adj(g)}, ${adj(b)})`;}
+  function applyTheme(t){
+    const root = document.documentElement;
+    root.style.setProperty('--bg',   adjust(t.bg,   t.intensity||100));
+    root.style.setProperty('--card', adjust(t.card, t.intensity||100));
+    root.style.setProperty('--acc',  adjust(t.acc,  t.intensity||100));
+    root.style.setProperty('--grid', adjust(t.grid, t.gridIntensity||100));
+    root.style.setProperty('--txt',  t.txt || "#0f172a");
+  }
+  function load(){ try { return JSON.parse(localStorage.getItem(THEME_KEY)||"null") || {...def}; } catch(e){ return {...def}; } }
+  function save(t){ localStorage.setItem(THEME_KEY, JSON.stringify(t)); }
+
+  function setPartColor(t){
+    const part = $("#kgbTarget").value;
+    const col  = $("#kgbColor").value;
+    if (part === "bg") t.bg = col;
+    else if (part === "card") t.card = col;
+    else if (part === "acc") t.acc = col;
+    else if (part === "grid") t.grid = col;
+    else t.txt = col;
+    applyTheme(t);
+  }
+
+  function buildSwatches(t){
+    const box = $("#kgbSwatches");
+    if (!box) return;
+    box.innerHTML = "";
+    pastel.forEach(c => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "swatch";
+      b.style.background = c;
+      b.title = c;
+      b.addEventListener("click", () => {
+        $("#kgbColor").value = c;
+        setPartColor(t);
+      });
+      box.appendChild(b);
+    });
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const t = load();
+    applyTheme(t);
+    buildSwatches(t);
+
+    $("#kgbApply").addEventListener("click", () => setPartColor(t));
+    $("#kgbSave").addEventListener("click", () => { save(t); alert("Thema opgeslagen."); });
+    $("#kgbReset").addEventListener("click", () => {
+      Object.assign(t, def);
+      applyTheme(t);
+      $("#kgbColor").value = t.acc;
+      buildSwatches(t);
+    });
+  });
+})();
+</script>
+
 </main>
 
 <footer><small>© KGB Finance 2025</small></footer>
