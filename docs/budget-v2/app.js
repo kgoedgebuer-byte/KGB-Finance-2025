@@ -1,3 +1,4 @@
+const KGB_DISABLE_THEME_BADGE = true;
 const KEY="kgb_finance_budget_only_v1";
 const THEME="kgb_finance_theme_v1";
 const PREF="kgb_finance_pref_v1";

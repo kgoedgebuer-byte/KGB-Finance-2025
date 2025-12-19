@@ -94,3 +94,22 @@ a{color:var(--acc)!important;}
 /* KGB_SWATCHES_VISIBILITY v1 */
 .swatches{display:flex;flex-wrap:wrap;gap:10px;padding:12px 0;}
 .swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--grid, #e2e8f0);cursor:pointer;}
+
+/* === AUTO FIX 20251219192508: KILL DEBUG/THEME BADGES === */
+#theme-status,
+#theme-badge,
+.theme-badge,
+.theme-status,
+.debug,
+[data-debug],
+.toast,
+.toast-badge,
+#kgb-theme-badge,
+.kgb-theme-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+/* ============================================== */
+
