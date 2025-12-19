@@ -117,6 +117,8 @@
   </section>
 
 <!-- KGB_COLOR_PICKER_UI v1 -->
+<div id="kgbThemePicker" class="kgb-theme-only">
+
 <div class="kgb-theme-picker card" style="margin-top:12px;">
   <div class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
     <label style="display:flex;gap:8px;align-items:center;">
@@ -131,7 +133,7 @@
     </label>
     <label style="display:flex;gap:8px;align-items:center;">
       <span>Kleur:</span>
-      <input id="kgbColor" type="color" value="#7c9cf5" />
+      <input id="kgbColor" type="color" value="#7c9cf5" /> <span id="kgbColorValue" class="kgb-color-value">#7c9cf5</span>
     </label>
     <button id="kgbApply" type="button">Toepassen</button>
     <button id="kgbSave" type="button">Opslaan</button>
@@ -207,6 +209,8 @@
   });
 })();
 </script>
+</div>
+
 
 </main>
 
@@ -244,6 +248,103 @@ if ('serviceWorker' in navigator) {
     // SW disabled for budget-v2 (cache issues).catch(()=>{});
   });
 }
+</script>
+
+
+<script>
+/* KGB_THEME_VISIBILITY_LOGIC v1 */
+(() => {
+  const $ = (s) => document.querySelector(s);
+
+  function isThemeActive(){
+    // 1) Als er een tabknop "Thema" bestaat met aria-current/active class
+    const themeBtn =
+      Array.from(document.querySelectorAll("a,button")).find(x => (x.textContent||"").trim().toLowerCase() === "thema");
+    if (themeBtn){
+      const cls = (themeBtn.className||"").toLowerCase();
+      if (cls.includes("active") || cls.includes("selected")) return true;
+      if (themeBtn.getAttribute("aria-current") === "page") return true;
+    }
+
+    // 2) fallback: kijk naar zichtbaarheid van de thema-section (h2 "Thema")
+    const h2 = Array.from(document.querySelectorAll("h1,h2,h3")).find(x => (x.textContent||"").trim().toLowerCase() === "thema");
+    if (h2){
+      const rect = h2.getBoundingClientRect();
+      // als het thema-blok in de layout zit
+      if (rect.width > 0 && rect.height > 0) return true;
+    }
+
+    // 3) fallback: url hint
+    const u = new URL(location.href);
+    if ((u.searchParams.get("tab")||"").toLowerCase() === "theme") return true;
+    if ((location.hash||"").toLowerCase().includes("theme")) return true;
+
+    return true; // als we het niet kunnen detecteren: toon (veilig)
+  }
+
+  function togglePicker(){
+    const box = $("#kgbThemePicker");
+    if (!box) return;
+    box.classList.toggle("is-visible", isThemeActive());
+  }
+
+  function syncColorUI(){
+    const color = $("#kgbColor");
+    const label = $("#kgbColorValue");
+    const target = $("#kgbTarget");
+    if (!color || !label || !target) return;
+
+    // probeer huidige theme uit localStorage te laden
+    let t = null;
+    try { t = JSON.parse(localStorage.getItem("kgb_finance_theme_v1") || "null"); } catch {}
+    t = t || {};
+
+    const part = target.value;
+    const current =
+      part === "bg"   ? (t.bg   || color.value) :
+      part === "card" ? (t.card || color.value) :
+      part === "acc"  ? (t.acc  || color.value) :
+      part === "grid" ? (t.grid || color.value) :
+                        (t.txt  || color.value);
+
+    // zet picker op de juiste huidige kleur
+    if (current) color.value = current;
+    label.textContent = (color.value || "").toUpperCase();
+
+    color.addEventListener("input", () => {
+      label.textContent = (color.value || "").toUpperCase();
+    });
+
+    target.addEventListener("change", () => {
+      // opnieuw sync naar gekozen onderdeel
+      try { t = JSON.parse(localStorage.getItem("kgb_finance_theme_v1") || "null") || {}; } catch { t = {}; }
+      const part2 = target.value;
+      const cur2 =
+        part2 === "bg"   ? (t.bg   || color.value) :
+        part2 === "card" ? (t.card || color.value) :
+        part2 === "acc"  ? (t.acc  || color.value) :
+        part2 === "grid" ? (t.grid || color.value) :
+                           (t.txt  || color.value);
+      if (cur2) color.value = cur2;
+      label.textContent = (color.value || "").toUpperCase();
+    });
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    togglePicker();
+    syncColorUI();
+
+    // klik op tabs -> opnieuw checken
+    document.addEventListener("click", (e) => {
+      const t = e.target;
+      if (!t) return;
+      const txt = (t.textContent||"").trim().toLowerCase();
+      if (txt === "thema" || txt === "budget" || txt === "dashboard") {
+        setTimeout(togglePicker, 50);
+      }
+    });
+  });
+})();
 </script>
 
 </body>
