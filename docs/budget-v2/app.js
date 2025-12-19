@@ -57,7 +57,7 @@ function renderBudget(){
 function refresh(){ renderDashboard(); renderBudget(); }
 
 $("#b_date").value=today();
-$("#addBudget").addEventListener("submit",e=>{
+$("#addBudget")?.addEventListener("submit",e=>{
   e.preventDefault();
   state.budget.push({date:$("#b_date").value,cat:$("#b_cat").value.trim(),desc:$("#b_desc").value.trim(),income:num($("#b_inc").value),expense:num($("#b_exp").value)});
   e.target.reset(); $("#b_date").value=today(); save();
@@ -69,7 +69,7 @@ function genericEdit(e){
   const isNum=["income","expense"].includes(k);
   state.budget[i][k]=isNum?num(t.value):t.value; save();
 }
-$("#tblBudget").addEventListener("input",genericEdit)
+$("#tblBudget")?.addEventListener("input",genericEdit)
 
 function genericAction(e){
   const b=e.target.closest("button"); if(!b) return;
@@ -78,27 +78,27 @@ function genericAction(e){
   if(a==="up" && i>0){ [state.budget[i-1],state.budget[i]]=[state.budget[i],state.budget[i-1]]; save(); }
   if(a==="down" && i<state.budget.length-1){ [state.budget[i+1],state.budget[i]]=[state.budget[i],state.budget[i+1]]; save(); }
 }
-$("#tblBudget").addEventListener("click",genericAction)
+$("#tblBudget")?.addEventListener("click",genericAction)
 
 $$('input[name="ctype"]').forEach(r=>{
   if(r.value===chartType) r.checked=true
   r.addEventListener("change",()=>{ chartType=r.value; setPref({chartType}); renderDashboard() })
 })
 
-$("#btnExport").addEventListener("click",()=>{
+$("#btnExport")?.addEventListener("click",()=>{
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'})
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='kgb_budget.json'; a.click(); URL.revokeObjectURL(a.href)
 })
-$("#fileImport").addEventListener("change",async (e)=>{
+$("#fileImport")?.addEventListener("change",async (e)=>{
   const f=e.target.files[0]; if(!f) return;
   try{ const data=JSON.parse(await f.text()); if(data && typeof data==="object"){ state=data; save(); alert("Geïmporteerd."); } }
   catch{ alert("Ongeldig JSON."); }
   e.target.value="";
 })
-$("#btnReset").addEventListener("click",()=>{ if(confirm("Alles wissen?")){ state={budget:[]}; save(); }})
+$("#btnReset")?.addEventListener("click",()=>{ if(confirm("Alles wissen?")){ state={budget:[]}; save(); }})
 
-$("#btnClear").addEventListener("click",()=>{ renderDashboard() })
-$("#btnDemo").addEventListener("click",()=>{
+$("#btnClear")?.addEventListener("click",()=>{ renderDashboard() })
+$("#btnDemo")?.addEventListener("click",()=>{
   if(!confirm("Demo-data toevoegen?")) return;
   state.budget=[
     {date:today(),cat:"Loon",desc:"",income:1000,expense:0},
@@ -115,10 +115,10 @@ function applyTheme(t){ document.documentElement.style.setProperty('--bg',adjust
 const defaultTheme={bg:"#f5f7ff",card:"#ffffff",acc:"#7c9cf5",txt:"#0f172a",grid:"#e2e8f0",intensity:100,gridIntensity:100}
 let theme=JSON.parse(localStorage.getItem(THEME)||"null")||defaultTheme; applyTheme(theme)
 function buildSwatches(){ const box=$("#swatches"); box.innerHTML=""; pastel.forEach(c=>{ const b=document.createElement("button"); b.style.background=c; b.title=c; b.addEventListener("click",()=>{ const t=$("#themeTarget").value; theme[t==="bg"?"bg":t==="card"?"card":t==="acc"?"acc":t==="grid"?"grid":"txt"]=c; applyTheme(theme)}); box.appendChild(b); }); $("#intensity").value=theme.intensity; $("#gridIntensity").value=theme.gridIntensity}
-$("#intensity").addEventListener("input",e=>{ theme.intensity=+e.target.value; applyTheme(theme) })
-$("#gridIntensity").addEventListener("input",e=>{ theme.gridIntensity=+e.target.value; applyTheme(theme) })
-$("#themeReset").addEventListener("click",()=>{ theme={...defaultTheme}; applyTheme(theme); buildSwatches() })
-$("#themeSave").addEventListener("click",()=>{ localStorage.setItem(THEME,JSON.stringify(theme)); alert("Thema opgeslagen.") })
+$("#intensity")?.addEventListener("input",e=>{ theme.intensity=+e.target.value; applyTheme(theme) })
+$("#gridIntensity")?.addEventListener("input",e=>{ theme.gridIntensity=+e.target.value; applyTheme(theme) })
+$("#themeReset")?.addEventListener("click",()=>{ theme={...defaultTheme}; applyTheme(theme); buildSwatches() })
+$("#themeSave")?.addEventListener("click",()=>{ localStorage.setItem(THEME,JSON.stringify(theme)); alert("Thema opgeslagen.") })
 buildSwatches()
 
 /* Tabs */
