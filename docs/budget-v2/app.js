@@ -130,3 +130,135 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 ensure(); refresh();
 
 try{buildSwatches();}catch(_){ }
+
+
+/* KGB_THEME_ENGINE v1 */
+(() => {
+  const THEME_KEY = "kgb_finance_theme_v1";
+  const pastel = ["#A0C4FF","#BDB2FF","#FFC6FF","#9BF6FF","#FDFFB6","#CAFFBF","#FFADAD","#FFD6A5","#E4C1F9","#CDEAC0","#B9FBC0","#FFD5C2","#F7DAD9","#E2ECE9","#E6CBA8","#E4C6A1","#E8AEB7","#A0CED9","#E8D7FF","#A3D5D3","#D9E8E3","#FFF3B0","#FFCFD2","#F1E3FF","#C8E7FF","#E3F8FF","#FFEEE8","#FFE3E3","#E5FFFB","#F6E6FF","#F9D8D6","#D7F9F1","#F8E8C6","#FBE7E1","#E0F7FA","#E8F5E9","#FFEBEE","#FFFDE7","#EDE7F6","#E3F2FD","#FCE4EC","#F3E5F5","#FFECB3","#D1C4E9","#BBDEFB","#C8E6C9","#F0F4C3","#DCEDC8"];
+  const def = {bg:"#f5f7ff",card:"#ffffff",acc:"#7c9cf5",txt:"#0f172a",grid:"#e2e8f0",intensity:100,gridIntensity:100};
+  const $ = (s, c=document) => c.querySelector(s);
+
+  function colToRgb(hex){
+    hex=(hex||"").replace('#','');
+    if(hex.length===3) hex=hex.split('').map(x=>x+x).join('');
+    const n=parseInt(hex,16);
+    return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+  }
+  function adjust(hex,f){
+    const {r,g,b}=colToRgb(hex);
+    const adj=(v)=>Math.max(0,Math.min(255, Math.round(v*(f/100))));
+    return `rgb(${adj(r)}, ${adj(g)}, ${adj(b)})`;
+  }
+
+  function load(){
+    try { return JSON.parse(localStorage.getItem(THEME_KEY)||"null") || {...def}; }
+    catch { return {...def}; }
+  }
+  function save(t){ localStorage.setItem(THEME_KEY, JSON.stringify(t)); }
+
+  function apply(t){
+    const root = document.documentElement;
+    root.style.setProperty('--bg',   adjust(t.bg,   t.intensity||100));
+    root.style.setProperty('--card', adjust(t.card, t.intensity||100));
+    root.style.setProperty('--acc',  adjust(t.acc,  t.intensity||100));
+    root.style.setProperty('--grid', adjust(t.grid, t.gridIntensity||100));
+    root.style.setProperty('--txt',  t.txt || "#0f172a");
+  }
+
+  function ensureSwatchesUI(){
+    // probeer de bestaande theme UI te gebruiken
+    const themeTitle = Array.from(document.querySelectorAll("h1,h2,h3")).find(x => (x.textContent||"").trim().toLowerCase()==="thema");
+    const themeArea = themeTitle ? (themeTitle.closest("section,.card,.panel,main") || themeTitle.parentElement) : document.body;
+
+    let box = $("#swatches");
+    if (!box){
+      box = document.createElement("div");
+      box.id = "swatches";
+      box.className = "swatches";
+      themeArea.appendChild(box);
+    }
+
+    // target select: bestaande #themeTarget of de 2e "Onderdeel" dropdown (onder thema)
+    let target = $("#themeTarget");
+    if (!target){
+      const sels = Array.from(themeArea.querySelectorAll("select"));
+      target = sels.find(s => (s.previousElementSibling?.textContent||"").toLowerCase().includes("onderdeel")) || sels[0];
+      if (target) target.id = "themeTarget";
+    }
+
+    // sliders: neem 2 range inputs uit thema area
+    const ranges = Array.from(themeArea.querySelectorAll('input[type="range"]'));
+    if (ranges[0] && !$("#intensity")) ranges[0].id = "intensity";
+    if (ranges[1] && !$("#gridIntensity")) ranges[1].id = "gridIntensity";
+
+    // knoppen reset/opslaan (boven thema)
+    const btns = Array.from(themeArea.querySelectorAll("button"));
+    const resetBtn = btns.find(b => (b.textContent||"").trim().toLowerCase()==="reset");
+    const saveBtn  = btns.find(b => (b.textContent||"").trim().toLowerCase()==="opslaan");
+    if (resetBtn && !$("#themeReset")) resetBtn.id = "themeReset";
+    if (saveBtn  && !$("#themeSave"))  saveBtn.id  = "themeSave";
+
+    return {box, target};
+  }
+
+  function initTheme(){
+    const t = load();
+    apply(t);
+
+    const {box, target} = ensureSwatchesUI();
+    if (!box || !target) return;
+
+    // build swatches (eenmalig)
+    if (box.children.length === 0){
+      pastel.forEach(c => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "swatch";
+        b.style.background = c;
+        b.title = c;
+        b.addEventListener("click", () => {
+          const part = (target.value || "bg");
+          if (part === "bg") t.bg = c;
+          else if (part === "card") t.card = c;
+          else if (part === "acc") t.acc = c;
+          else if (part === "grid") t.grid = c;
+          else t.txt = c;
+          apply(t);
+        });
+        box.appendChild(b);
+      });
+    }
+
+    const intensity = $("#intensity");
+    const gridIntensity = $("#gridIntensity");
+    const btnReset = $("#themeReset");
+    const btnSave = $("#themeSave");
+
+    if (intensity){
+      intensity.value = t.intensity ?? 100;
+      const onI = (e)=>{ t.intensity = +e.target.value; apply(t); };
+      intensity.addEventListener("input", onI);
+      intensity.addEventListener("change", onI);
+    }
+    if (gridIntensity){
+      gridIntensity.value = t.gridIntensity ?? 100;
+      const onG = (e)=>{ t.gridIntensity = +e.target.value; apply(t); };
+      gridIntensity.addEventListener("input", onG);
+      gridIntensity.addEventListener("change", onG);
+    }
+    if (btnReset){
+      btnReset.addEventListener("click", () => { Object.assign(t, def); apply(t); });
+    }
+    if (btnSave){
+      btnSave.addEventListener("click", () => { save(t); alert("Thema opgeslagen."); });
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    initTheme();
+    // safety: 2e run na render
+    setTimeout(initTheme, 250);
+  });
+})();
+
