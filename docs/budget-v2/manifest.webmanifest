@@ -1,7 +1,7 @@
 {
   "name": "KGB Budget 2025 v2",
   "short_name": "KGB Budget",
-  "start_url": "./?v=20251220183152",
+  "start_url": "./?v=pwa-20251220194252",
   "display": "standalone",
   "background_color": "#f5f7ff",
   "theme_color": "#7c9cf5",
@@ -31,5 +31,5 @@
       "purpose": "maskable"
     }
   ],
-  "scope": "./?v=20251220183152"
+  "scope": "./"
 }
