@@ -1,13 +1,13 @@
 {
   "name": "KGB Full 2025",
   "short_name": "KGB Full",
-  "start_url": "/KGB-Finance-2025/full/?v=2025full",
+  "start_url": "/KGB-Finance-2025/full/?v=1766405605",
   "scope": "/KGB-Finance-2025/full/",
   "display": "standalone",
   "background_color": "#0b1c3a",
   "theme_color": "#0b1c3a",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icons/icon-192-fix-1766405605.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512-fix-1766405605.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
