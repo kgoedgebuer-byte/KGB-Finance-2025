@@ -1,0 +1,13 @@
+{
+  "name": "KGB Budget 2025",
+  "short_name": "KGB Budget",
+  "start_url": "/KGB-Finance-2025/budget-v2/?v=2025budget",
+  "scope": "/KGB-Finance-2025/budget-v2/",
+  "display": "standalone",
+  "background_color": "#5b0f14",
+  "theme_color": "#5b0f14",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
