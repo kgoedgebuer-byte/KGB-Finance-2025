@@ -1,32 +1,32 @@
 {
-  "name": "KGB Full",
+  "name": "KGB Finance 2025 (Full)",
   "short_name": "KGB Full",
-  "start_url": "./?v=pwa-20251220194252",
+  "start_url": "./?v=None",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0b2c6b",
   "theme_color": "#0b2c6b",
   "icons": [
     {
-      "src": "icons/icon-192-v2.png",
+      "src": "icons/icon-192.png?v=None",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512-v2.png",
+      "src": "icons/icon-512.png?v=None",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192-maskable-v2.png",
+      "src": "icons/icon-192-maskable.png?v=None",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icons/icon-512-maskable-v2.png",
+      "src": "icons/icon-512-maskable.png?v=None",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
