@@ -1,36 +1,36 @@
 {
   "name": "KGB Finance 2025 — Budget",
   "short_name": "KGB Budget",
-  "start_url": "./?v=1766392604",
+  "start_url": "./?v=1766393288",
   "display": "standalone",
   "background_color": "#f5f7ff",
   "theme_color": "#7c9cf5",
   "icons": [
     {
-      "src": "icons/icon-192.png?v=1766392604",
+      "src": "icons/icon-192.png?v=1766393288",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png?v=1766392604",
+      "src": "icons/icon-512.png?v=1766393288",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192-maskable.png?v=1766392604",
+      "src": "icons/icon-192-maskable.png?v=1766393288",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icons/icon-512-maskable.png?v=1766392604",
+      "src": "icons/icon-512-maskable.png?v=1766393288",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "scope": "./?s=1766392604",
-  "id": "budget-v2?1766392604"
+  "scope": "./?s=1766393288",
+  "id": "budget-v2?1766393288"
 }
