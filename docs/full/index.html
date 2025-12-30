@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="nl">
 <head>
+<script>
+(function () {
+  if (location.protocol === "file:") {
+    alert("⚠️ Je opende KGB Full lokaal (file://). Dat bewaart je gegevens NIET.\n\nJe wordt nu doorgestuurd naar de ONLINE versie.");
+    location.replace("https://kgoedgebuer-byte.github.io/KGB-Finance-2025/full/");
+  }
+})();
+</script>
   <meta name="pwa_stamp" content="1766391091">
 
   <meta charset="utf-8" />
