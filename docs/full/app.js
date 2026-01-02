@@ -1,4 +1,4 @@
-/* KGB_INVEST_PROFIT_FIX_V1 */
+/* KGB_INVEST_PROFIT_FIX_V2 */
 (function () {
   function parseMoney(v){
     if (v === null || v === undefined) return 0;
@@ -27,7 +27,6 @@
   }
 
   function findInvestTable(){
-    // zoek een table waar headers o.a. Aankoop/Verkoop/Dividend/Winst/Verlies bevatten
     const tables = Array.from(document.querySelectorAll("table"));
     for (const t of tables){
       const ths = Array.from(t.querySelectorAll("thead th, th"));
@@ -43,7 +42,6 @@
     const h = ths.map(x => (x.textContent||"").trim().toLowerCase());
     const idxOf = (name)=>h.findIndex(x=>x.includes(name));
     return {
-      aantal: idxOf("aantal"),
       aankoop: idxOf("aankoop"),
       verkoop: idxOf("verkoop"),
       dividend: idxOf("dividend"),
@@ -61,24 +59,21 @@
 
   function setCellText(cell, text){
     if (!cell) return;
-    // Als er een input zit, laten we die met rust. We zetten tekst op de cell zelf.
-    // (In jouw UI zijn winst/verlies meestal text-cellen)
+    const inp = cell.querySelector("input, select, textarea");
+    if (inp) return; // winst/verlies zijn normaal geen input; als het wel zo is, laten we het met rust
     cell.textContent = text;
   }
 
   function setDashboardInvestNet(total){
-    // Zoek kaart/label "Beleggingen (netto)" en zet waarde
     const nodes = Array.from(document.querySelectorAll("*"));
     const labelNode = nodes.find(n => (n.textContent||"").trim().toLowerCase() === "beleggingen (netto)");
     if (!labelNode) return;
 
-    // vaak staat waarde in hetzelfde kaartje, bv. volgende element met grote cijfers
     const card = labelNode.closest("div");
     if (!card) return;
 
-    // zoek in card het element dat het getal bevat (meestal een p/span met cijfers)
     const candidates = Array.from(card.querySelectorAll("div,span,p,h1,h2,h3"));
-    const valNode = candidates.find(n => /-?\d/.test((n.textContent||"")) && n !== labelNode);
+    const valNode = candidates.find(n => n !== labelNode && /-?\d/.test((n.textContent||"")));
     if (!valNode) return;
 
     valNode.textContent = fmt(total);
@@ -97,44 +92,37 @@
 
     for (const r of rows){
       const tds = Array.from(r.querySelectorAll("td"));
-      const qty = parseMoney(cellValue(tds[m.aantal]));
+
+      // ✅ JOUW BETEKENIS: Aankoop/Verkoop zijn TOTAALBEDRAGEN (geen * aantal)
       const buy = parseMoney(cellValue(tds[m.aankoop]));
       const sell = parseMoney(cellValue(tds[m.verkoop]));
       const div = parseMoney(cellValue(tds[m.dividend]));
 
-      // ✅ NIEUWE LOGICA:
-      // - Als er geen verkoop is: geen winst/verlies (aankoop is geen verlies)
-      // - Als verkoop wel is ingevuld: (sell - buy) * qty + dividend
-      let profit = 0;
-      if (sell !== 0){
-        profit = ((sell - buy) * qty) + div;
-      } else if (div !== 0) {
-        // dividend zonder verkoop: tel dividend als "winst" (cash-in)
-        profit = div;
-      }
+      const netRow = (sell + div) - buy;
 
-      const winst = profit > 0 ? profit : 0;
-      const verlies = profit < 0 ? -profit : 0;
+      const winst = netRow > 0 ? netRow : 0;
+      const verlies = netRow < 0 ? -netRow : 0;
 
       setCellText(tds[m.winst], fmt(winst));
       setCellText(tds[m.verlies], fmt(verlies));
 
-      totalNet += profit;
+      totalNet += netRow;
     }
 
     setDashboardInvestNet(totalNet);
   }
 
-  // trigger op input, clicks en tab-navigatie
   const trigger = () => setTimeout(recomputeInvestments, 50);
 
-  document.addEventListener("input", (e)=>trigger(), true);
-  document.addEventListener("change", (e)=>trigger(), true);
-  document.addEventListener("click", (e)=>trigger(), true);
+  document.addEventListener("input", trigger, true);
+  document.addEventListener("change", trigger, true);
+  document.addEventListener("click", trigger, true);
 
-  // ook periodic (voor wanneer UI pas later rendert)
   setInterval(recomputeInvestments, 800);
-})(); 
+})();
+
+
+ 
 
 
 /* KGB_MONEY_PARSE_FIX_V1 */
