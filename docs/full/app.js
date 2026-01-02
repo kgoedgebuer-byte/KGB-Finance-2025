@@ -674,10 +674,7 @@ refresh();
 
 
 
-/* KGB_FULL_CALC_FIX_V5 (ALL DEVICES)
-   - Full gebruikt Aankoop/Verkoop/Dividend als TOTAALBEDRAG (geen * aantal)
-   - Recalc: realtime + dashboard force
-*/
+
 /* END_KGB_FULL_CALC_FIX */
 (function(){
   function norm(t){ return (t||"").replace(/\s+/g," ").trim().toLowerCase(); }
@@ -846,6 +843,128 @@ refresh();
   setInterval(tick, 250);
 
   // eerste run
+  tick();
+})();
+
+
+
+
+/* KGB_FULL_CASHFLOW_FIX_V6
+   - Elke rij = transactie (aankoop/verk/verkoop/dividend zijn TOTAALBEDRAGEN)
+   - Netto per rij = (verkoop + dividend - aankoop)
+   - Winst/Verlies kolommen tonen netto per rij (positief => winst, negatief => verlies)
+   - Dashboard "Beleggingen (netto)" en "Crypto (netto)" = som van alle rijen (cashflow)
+*/
+(function(){
+  function norm(s){ return (s||"").toString().trim().toLowerCase(); }
+
+  function parseMoney(v){
+    if (v===null || v===undefined) return 0;
+    let s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace(/[^0-9,\.\-]/g,"");
+    const ld = s.lastIndexOf(".");
+    const lc = s.lastIndexOf(",");
+    if (ld !== -1 && lc !== -1){
+      if (lc > ld) s = s.replace(/\./g,"").replace(/,/g,".");
+      else s = s.replace(/,/g,"");
+    } else if (lc !== -1){
+      s = s.replace(/,/g,".");
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function fmt(n){
+    const sign = n < 0 ? "-" : "";
+    n = Math.abs(n);
+    const s = n.toFixed(2).split(".");
+    const a = s[0].replace(/\B(?=(\d{3})+(?!\d))/g,".");
+    return sign + a + "," + s[1];
+  }
+
+  function setCellText(td, txt){
+    if (!td) return;
+    const t = String(txt);
+    if ((td.textContent||"").trim() !== t) td.textContent = t;
+  }
+
+  function findDashValueByLabel(label){
+    const nodes = Array.from(document.querySelectorAll("*"));
+    const lab = nodes.find(n => norm(n.textContent) === norm(label));
+    if (!lab) return null;
+    const card = lab.closest("div") || lab.parentElement;
+    if (!card) return null;
+    const val = Array.from(card.querySelectorAll("div,span,p,strong,b,h1,h2,h3"))
+      .find(n => n !== lab && /-?\d/.test((n.textContent||"")));
+    return val || null;
+  }
+
+  function recalcVisibleTable(sectionTitle){
+    const heading = Array.from(document.querySelectorAll("h1,h2,h3,div,b,strong"))
+      .find(n => norm(n.textContent) === norm(sectionTitle));
+    if (!heading) return { net: 0 };
+
+    const root = heading.closest("section") || heading.parentElement || document;
+    const table = root.querySelector("table");
+    if (!table) return { net: 0 };
+
+    const ths = Array.from(table.querySelectorAll("thead th, th")).map(th => norm(th.textContent));
+    const col = (name) => ths.findIndex(x => x === norm(name));
+
+    const iAankoop = col("aankoop");
+    const iVerkoop = col("verkoop");
+    const iDividend = col("dividend");
+    const iWinst = col("winst");
+    const iVerlies = col("verlies");
+
+    if (iAankoop < 0 || iVerkoop < 0 || iWinst < 0 || iVerlies < 0) return { net: 0 };
+
+    let totalNet = 0;
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+
+    for (const tr of rows){
+      const tds = Array.from(tr.querySelectorAll("td"));
+      if (!tds.length) continue;
+
+      const aankoop = parseMoney((tds[iAankoop]?.querySelector("input")||{}).value);
+      const verkoop = parseMoney((tds[iVerkoop]?.querySelector("input")||{}).value);
+      const dividend = iDividend >= 0 ? parseMoney((tds[iDividend]?.querySelector("input")||{}).value) : 0;
+
+      const net = (verkoop + dividend) - aankoop;   // ✅ cashflow per rij
+      totalNet += net;
+
+      const winst = net > 0 ? net : 0;
+      const verlies = net < 0 ? -net : 0;
+
+      setCellText(tds[iWinst], fmt(winst));
+      setCellText(tds[iVerlies], fmt(verlies));
+    }
+
+    return { net: totalNet };
+  }
+
+  function tick(){
+    // Als je op Beleggingen bent: bereken daaruit
+    const inv = recalcVisibleTable("Beleggingen").net;
+    const cry = recalcVisibleTable("Crypto").net;
+
+    // onthoud laatste totals zodat dashboard ze kan tonen als je switcht van tab
+    window.__KGB_FULL_LAST_INV = inv;
+    window.__KGB_FULL_LAST_CRY = cry;
+
+    const invNode = findDashValueByLabel("Beleggingen (netto)");
+    const cryNode = findDashValueByLabel("Crypto (netto)");
+
+    if (invNode) invNode.textContent = fmt(window.__KGB_FULL_LAST_INV || 0);
+    if (cryNode) cryNode.textContent = fmt(window.__KGB_FULL_LAST_CRY || 0);
+  }
+
+  document.addEventListener("input", tick, true);
+  document.addEventListener("change", tick, true);
+  window.addEventListener("focus", tick);
+  document.addEventListener("visibilitychange", tick);
+  setInterval(tick, 250);
   tick();
 })();
 
