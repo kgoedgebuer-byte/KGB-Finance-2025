@@ -1,3 +1,64 @@
+/* KGB_ACTIVEYEAR_FIX_V2 */
+(function () {
+  // Kies activeYear op een stabiele manier (opslag + berekening hangt hiervan af)
+  function getUrlYear() {
+    try {
+      const u = new URL(location.href);
+      const y = u.searchParams.get("year");
+      const n = y ? parseInt(y, 10) : NaN;
+      return Number.isFinite(n) ? n : null;
+    } catch(e) { return null; }
+  }
+
+  function getStoredYear() {
+    try {
+      const y = localStorage.getItem("kgb_activeYear");
+      const n = y ? parseInt(y, 10) : NaN;
+      return Number.isFinite(n) ? n : null;
+    } catch(e) { return null; }
+  }
+
+  // Default naar 2025 (dit project heet KGB Finance 2025)
+  const urlY = getUrlYear();
+  const stY  = getStoredYear();
+  window.activeYear = urlY || stY || 2025;
+
+  // Sync met year dropdown (als die bestaat)
+  function syncDropdown() {
+    const sel =
+      document.querySelector("#yearSelect") ||
+      document.querySelector("#kgbYear") ||
+      document.querySelector("select[name='year']") ||
+      document.querySelector("select[data-year]");
+
+    if (!sel) return;
+
+    // Zet dropdown naar activeYear als optie bestaat
+    try {
+      const opt = Array.from(sel.options || []).find(o => String(o.value) === String(window.activeYear));
+      if (opt) sel.value = String(window.activeYear);
+    } catch(e) {}
+
+    // Als user verandert: bewaar en reload app-state
+    sel.addEventListener("change", () => {
+      const n = parseInt(sel.value, 10);
+      if (Number.isFinite(n)) {
+        window.activeYear = n;
+        try { localStorage.setItem("kgb_activeYear", String(n)); } catch(e) {}
+        // force reload zodat app alles herlaadt met juiste jaar-key
+        location.href = location.pathname + "?year=" + n;
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", syncDropdown);
+  } else {
+    syncDropdown();
+  }
+})();
+
+
 /* KGB_COMPAT_ACTIVEYEAR */
 (function () {
   // Sommige builds verwachten een globale activeYear
