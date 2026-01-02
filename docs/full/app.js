@@ -1,3 +1,23 @@
+/* KGB_COMPAT_ACTIVEYEAR */
+(function () {
+  // Sommige builds verwachten een globale activeYear
+  if (typeof window.activeYear === "undefined" || window.activeYear === null) {
+    window.activeYear = (new Date()).getFullYear();
+  }
+  // En soms bestaat yearOf ook niet (extra zekerheid)
+  if (typeof window.yearOf !== "function") {
+    window.yearOf = function (dateLike) {
+      try {
+        const d = (dateLike instanceof Date) ? dateLike : new Date(dateLike);
+        const y = d.getFullYear();
+        return Number.isFinite(y) ? y : (new Date()).getFullYear();
+      } catch (e) {
+        return (new Date()).getFullYear();
+      }
+    };
+  }
+})();
+
 /* KGB_COMPAT_YEAROF */
 (function () {
   // Zorg dat Full niet crasht als yearOf ontbreekt
