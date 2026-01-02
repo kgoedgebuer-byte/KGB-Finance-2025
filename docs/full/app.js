@@ -1,3 +1,57 @@
+/* KGB_MONEY_PARSE_FIX_V1 */
+(function () {
+  // Robuuste parser: accepteert 400 | 400,00 | 1.234,56 | € 1 234,56 | -1.500,00
+  window.kgbParseMoney = function (val) {
+    if (val === null || val === undefined) return 0;
+    let s = String(val).trim();
+    if (!s) return 0;
+    // verwijder valuta en spaties
+    s = s.replace(/[^0-9,\.\-]/g, "");
+    // als zowel . als , aanwezig: neem laatste separator als decimaal
+    const lastDot = s.lastIndexOf(".");
+    const lastComma = s.lastIndexOf(",");
+    if (lastDot !== -1 && lastComma !== -1) {
+      if (lastComma > lastDot) {
+        // komma is decimaal: verwijder alle punten (duizendtallen), vervang komma door punt
+        s = s.replace(/\./g, "").replace(/,/g, ".");
+      } else {
+        // punt is decimaal: verwijder alle komma's (duizendtallen)
+        s = s.replace(/,/g, "");
+      }
+    } else if (lastComma !== -1) {
+      // alleen komma: decimaal
+      s = s.replace(/,/g, ".");
+    } else {
+      // alleen punt of niets: ok
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  function sanitizeInputs(root) {
+    const inputs = (root || document).querySelectorAll("input");
+    inputs.forEach(inp => {
+      const ph = (inp.getAttribute("placeholder") || "").toLowerCase();
+      // alleen velden met geld-achtige placeholders aanpakken
+      if (ph.includes("aankoop") || ph.includes("verkoop") || ph.includes("dividend") || ph.includes("bedrag")) {
+        inp.value = String(window.kgbParseMoney(inp.value)).replace(".", ",");
+      }
+    });
+  }
+
+  // Bij klikken op Toevoegen: eerst normaliseren zodat opslag/berekening correct is
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!t) return;
+    const txt = (t.textContent || "").trim().toLowerCase();
+    if (txt.includes("toevoegen")) {
+      sanitizeInputs(document);
+    }
+  }, true);
+
+})();
+
+
 /* KGB_ACTIVEYEAR_FIX_V2 */
 (function () {
   // Kies activeYear op een stabiele manier (opslag + berekening hangt hiervan af)
