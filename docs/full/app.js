@@ -1,4 +1,4 @@
-/* KGB_INVEST_PROFIT_FIX_V2 */
+/* KGB_INVEST_PROFIT_FIX_V3 */
 (function () {
   function parseMoney(v){
     if (v === null || v === undefined) return 0;
@@ -60,23 +60,38 @@
   function setCellText(cell, text){
     if (!cell) return;
     const inp = cell.querySelector("input, select, textarea");
-    if (inp) return; // winst/verlies zijn normaal geen input; als het wel zo is, laten we het met rust
+    if (inp) return;
     cell.textContent = text;
   }
 
-  function setDashboardInvestNet(total){
+  function findDashboardInvestValueNode(){
     const nodes = Array.from(document.querySelectorAll("*"));
     const labelNode = nodes.find(n => (n.textContent||"").trim().toLowerCase() === "beleggingen (netto)");
-    if (!labelNode) return;
-
+    if (!labelNode) return null;
     const card = labelNode.closest("div");
-    if (!card) return;
+    if (!card) return null;
 
     const candidates = Array.from(card.querySelectorAll("div,span,p,h1,h2,h3"));
     const valNode = candidates.find(n => n !== labelNode && /-?\d/.test((n.textContent||"")));
+    return valNode || null;
+  }
+
+  let lastWanted = null;
+  let obs = null;
+
+  function lockDashboardValue(){
+    const valNode = findDashboardInvestValueNode();
     if (!valNode) return;
 
-    valNode.textContent = fmt(total);
+    if (obs) obs.disconnect();
+    obs = new MutationObserver(() => {
+      if (lastWanted !== null && valNode.textContent.trim() !== lastWanted) {
+        valNode.textContent = lastWanted;
+      }
+    });
+    obs.observe(valNode, { childList:true, characterData:true, subtree:true });
+
+    if (lastWanted !== null) valNode.textContent = lastWanted;
   }
 
   function recomputeInvestments(){
@@ -93,7 +108,7 @@
     for (const r of rows){
       const tds = Array.from(r.querySelectorAll("td"));
 
-      // ✅ JOUW BETEKENIS: Aankoop/Verkoop zijn TOTAALBEDRAGEN (geen * aantal)
+      // ✅ Aankoop/Verkoop/Dividend zijn TOTAALBEDRAGEN (geen * aantal)
       const buy = parseMoney(cellValue(tds[m.aankoop]));
       const sell = parseMoney(cellValue(tds[m.verkoop]));
       const div = parseMoney(cellValue(tds[m.dividend]));
@@ -109,7 +124,14 @@
       totalNet += netRow;
     }
 
-    setDashboardInvestNet(totalNet);
+    lastWanted = fmt(totalNet);
+
+    // Zet dashboard waarde en “lock” hem tegen oude code die het overschrijft
+    const valNode = findDashboardInvestValueNode();
+    if (valNode) {
+      if (valNode.textContent.trim() != lastWanted) valNode.textContent = lastWanted;
+      lockDashboardValue();
+    }
   }
 
   const trigger = () => setTimeout(recomputeInvestments, 50);
@@ -118,8 +140,13 @@
   document.addEventListener("change", trigger, true);
   document.addEventListener("click", trigger, true);
 
-  setInterval(recomputeInvestments, 800);
+  // Hard refresh van berekening + lock
+  setInterval(recomputeInvestments, 250);
+  setInterval(lockDashboardValue, 800);
 })();
+
+
+
 
 
  
