@@ -1,3 +1,142 @@
+/* KGB_INVEST_PROFIT_FIX_V1 */
+(function () {
+  function parseMoney(v){
+    if (v === null || v === undefined) return 0;
+    let s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace(/[^0-9,\.\-]/g, "");
+    const ld = s.lastIndexOf(".");
+    const lc = s.lastIndexOf(",");
+    if (ld !== -1 && lc !== -1){
+      if (lc > ld) s = s.replace(/\./g,"").replace(/,/g,".");
+      else s = s.replace(/,/g,"");
+    } else if (lc !== -1){
+      s = s.replace(/,/g,".");
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function fmt(n){
+    const sign = n < 0 ? "-" : "";
+    n = Math.abs(n);
+    const s = n.toFixed(2);
+    const parts = s.split(".");
+    let a = parts[0];
+    a = a.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return sign + a + "," + parts[1];
+  }
+
+  function findInvestTable(){
+    // zoek een table waar headers o.a. Aankoop/Verkoop/Dividend/Winst/Verlies bevatten
+    const tables = Array.from(document.querySelectorAll("table"));
+    for (const t of tables){
+      const ths = Array.from(t.querySelectorAll("thead th, th"));
+      const h = ths.map(x => (x.textContent||"").trim().toLowerCase());
+      const has = (w)=>h.some(x=>x.includes(w));
+      if (has("aankoop") && has("verkoop") && has("dividend") && has("winst") && has("verlies")) return t;
+    }
+    return null;
+  }
+
+  function mapHeaderIndexes(table){
+    const ths = Array.from(table.querySelectorAll("thead th, th"));
+    const h = ths.map(x => (x.textContent||"").trim().toLowerCase());
+    const idxOf = (name)=>h.findIndex(x=>x.includes(name));
+    return {
+      aantal: idxOf("aantal"),
+      aankoop: idxOf("aankoop"),
+      verkoop: idxOf("verkoop"),
+      dividend: idxOf("dividend"),
+      winst: idxOf("winst"),
+      verlies: idxOf("verlies"),
+    };
+  }
+
+  function cellValue(cell){
+    if (!cell) return "";
+    const inp = cell.querySelector("input, select, textarea");
+    if (inp) return inp.value;
+    return (cell.textContent||"").trim();
+  }
+
+  function setCellText(cell, text){
+    if (!cell) return;
+    // Als er een input zit, laten we die met rust. We zetten tekst op de cell zelf.
+    // (In jouw UI zijn winst/verlies meestal text-cellen)
+    cell.textContent = text;
+  }
+
+  function setDashboardInvestNet(total){
+    // Zoek kaart/label "Beleggingen (netto)" en zet waarde
+    const nodes = Array.from(document.querySelectorAll("*"));
+    const labelNode = nodes.find(n => (n.textContent||"").trim().toLowerCase() === "beleggingen (netto)");
+    if (!labelNode) return;
+
+    // vaak staat waarde in hetzelfde kaartje, bv. volgende element met grote cijfers
+    const card = labelNode.closest("div");
+    if (!card) return;
+
+    // zoek in card het element dat het getal bevat (meestal een p/span met cijfers)
+    const candidates = Array.from(card.querySelectorAll("div,span,p,h1,h2,h3"));
+    const valNode = candidates.find(n => /-?\d/.test((n.textContent||"")) && n !== labelNode);
+    if (!valNode) return;
+
+    valNode.textContent = fmt(total);
+  }
+
+  function recomputeInvestments(){
+    const table = findInvestTable();
+    if (!table) return;
+
+    const m = mapHeaderIndexes(table);
+    if (Object.values(m).some(x => x < 0)) return;
+
+    const rows = Array.from(table.querySelectorAll("tbody tr")).filter(r => r.querySelectorAll("td").length > 0);
+
+    let totalNet = 0;
+
+    for (const r of rows){
+      const tds = Array.from(r.querySelectorAll("td"));
+      const qty = parseMoney(cellValue(tds[m.aantal]));
+      const buy = parseMoney(cellValue(tds[m.aankoop]));
+      const sell = parseMoney(cellValue(tds[m.verkoop]));
+      const div = parseMoney(cellValue(tds[m.dividend]));
+
+      // ✅ NIEUWE LOGICA:
+      // - Als er geen verkoop is: geen winst/verlies (aankoop is geen verlies)
+      // - Als verkoop wel is ingevuld: (sell - buy) * qty + dividend
+      let profit = 0;
+      if (sell !== 0){
+        profit = ((sell - buy) * qty) + div;
+      } else if (div !== 0) {
+        // dividend zonder verkoop: tel dividend als "winst" (cash-in)
+        profit = div;
+      }
+
+      const winst = profit > 0 ? profit : 0;
+      const verlies = profit < 0 ? -profit : 0;
+
+      setCellText(tds[m.winst], fmt(winst));
+      setCellText(tds[m.verlies], fmt(verlies));
+
+      totalNet += profit;
+    }
+
+    setDashboardInvestNet(totalNet);
+  }
+
+  // trigger op input, clicks en tab-navigatie
+  const trigger = () => setTimeout(recomputeInvestments, 50);
+
+  document.addEventListener("input", (e)=>trigger(), true);
+  document.addEventListener("change", (e)=>trigger(), true);
+  document.addEventListener("click", (e)=>trigger(), true);
+
+  // ook periodic (voor wanneer UI pas later rendert)
+  setInterval(recomputeInvestments, 800);
+})(); 
+
+
 /* KGB_MONEY_PARSE_FIX_V1 */
 (function () {
   // Robuuste parser: accepteert 400 | 400,00 | 1.234,56 | € 1 234,56 | -1.500,00
