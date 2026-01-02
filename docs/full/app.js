@@ -671,3 +671,181 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 
 ensure();
 refresh();
+
+
+
+/* KGB_FULL_CALC_FIX_V5 (ALL DEVICES)
+   - Full gebruikt Aankoop/Verkoop/Dividend als TOTAALBEDRAG (geen * aantal)
+   - Recalc: realtime + dashboard force
+*/
+/* END_KGB_FULL_CALC_FIX */
+(function(){
+  function norm(t){ return (t||"").replace(/\s+/g," ").trim().toLowerCase(); }
+
+  function parseMoney(v){
+    if (v === null || v === undefined) return 0;
+    let s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace(/[^0-9,\.\-]/g, "");
+    const ld = s.lastIndexOf(".");
+    const lc = s.lastIndexOf(",");
+    if (ld !== -1 && lc !== -1){
+      // neem de laatste als decimal
+      if (lc > ld) s = s.replace(/\./g,"").replace(/,/g,".");
+      else s = s.replace(/,/g,"");
+    } else if (lc !== -1){
+      s = s.replace(/,/g,".");
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function fmt(n){
+    const sign = n < 0 ? "-" : "";
+    n = Math.abs(n);
+    const s = n.toFixed(2);
+    const p = s.split(".");
+    let a = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return sign + a + "," + p[1];
+  }
+
+  function setText(el, v){
+    if (!el) return;
+    const t = String(v);
+    if ((el.textContent||"").trim() !== t) el.textContent = t;
+  }
+
+  // --------- Dashboard helpers ----------
+  function findDashValueByLabel(labelText){
+    const label = Array.from(document.querySelectorAll("*"))
+      .find(n => norm(n.textContent) === norm(labelText));
+    if (!label) return null;
+    const card = label.closest("div") || label.parentElement;
+    if (!card) return null;
+
+    // waarde zit meestal in hetzelfde kaartje en is het eerste "getal"
+    const cand = Array.from(card.querySelectorAll("div,span,p,strong,b,h1,h2,h3"))
+      .find(n => n !== label && /-?\d/.test((n.textContent||"")));
+    return cand || null;
+  }
+
+  // detecteer invest/crypto arrays in localStorage en sommeer netto op TOTAAL-basis
+  function sumNetFromStorage(kind){ // kind: "invest" of "crypto"
+    let net = 0;
+
+    function looksRow(obj){
+      if (!obj || typeof obj !== "object") return false;
+      const keys = Object.keys(obj).map(k => k.toLowerCase());
+      const hasBuy = keys.some(k => k.includes("aankoop") || k.includes("buy"));
+      const hasSell = keys.some(k => k.includes("verkoop") || k.includes("sell"));
+      const hasDiv = keys.some(k => k.includes("dividend") || k === "div");
+      const hasStock = keys.some(k => k.includes("aandeel") || k.includes("stock") || k.includes("share"));
+      const hasToken = keys.some(k => k.includes("token"));
+      if (kind === "invest") return (hasBuy || hasSell) && hasStock;
+      if (kind === "crypto") return (hasBuy || hasSell) && hasToken;
+      return false;
+    }
+
+    function getField(obj, patterns){
+      const entries = Object.entries(obj);
+      for (const [k,v] of entries){
+        const kl = k.toLowerCase();
+        if (patterns.some(p => kl === p || kl.includes(p))) return v;
+      }
+      return 0;
+    }
+
+    for (let i=0; i<localStorage.length; i++){
+      const key = localStorage.key(i);
+      if (!key) continue;
+
+      let raw;
+      try { raw = localStorage.getItem(key); } catch(e){ continue; }
+      if (!raw || raw[0] !== "[") continue;
+
+      let arr;
+      try { arr = JSON.parse(raw); } catch(e){ continue; }
+      if (!Array.isArray(arr) || !arr.length) continue;
+
+      if (!arr.some(looksRow)) continue;
+
+      for (const row of arr){
+        if (!looksRow(row)) continue;
+        const aankoop = parseMoney(getField(row, ["aankoop","buy","purchase"]));
+        const verkoop = parseMoney(getField(row, ["verkoop","sell","sale"]));
+        const dividend = parseMoney(getField(row, ["dividend","div"]));
+        net += (verkoop + dividend) - aankoop;  // ✅ totaalbasis
+      }
+    }
+    return net;
+  }
+
+  // --------- Table recalc (Beleggingen + Crypto) ----------
+  function recalcTable(sectionTitle){
+    // zoekt de sectie op titel (Beleggingen/Crypto) en rekent elke rij opnieuw
+    const heading = Array.from(document.querySelectorAll("h1,h2,h3,div,b,strong"))
+      .find(n => norm(n.textContent) === norm(sectionTitle));
+    if (!heading) return;
+
+    const root = heading.closest("section") || heading.parentElement || document;
+    const table = root.querySelector("table");
+    if (!table) return;
+
+    const ths = Array.from(table.querySelectorAll("thead th, th")).map(th => norm(th.textContent));
+    const col = (name) => ths.findIndex(x => x === norm(name));
+
+    const iAankoop = col("aankoop");
+    const iVerkoop = col("verkoop");
+    const iDividend = col("dividend");
+    const iWinst = col("winst");
+    const iVerlies = col("verlies");
+
+    if (iAankoop < 0 || iVerkoop < 0 || iWinst < 0 || iVerlies < 0) return;
+
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    for (const tr of rows){
+      const tds = Array.from(tr.querySelectorAll("td"));
+      if (!tds.length) continue;
+
+      const vA = parseMoney((tds[iAankoop]?.querySelector("input")||{}).value);
+      const vV = parseMoney((tds[iVerkoop]?.querySelector("input")||{}).value);
+      const vD = iDividend >= 0 ? parseMoney((tds[iDividend]?.querySelector("input")||{}).value) : 0;
+
+      const net = (vV + vD) - vA; // ✅ totaalbasis
+      const winst = net > 0 ? net : 0;
+      const verlies = net < 0 ? -net : 0;
+
+      setText(tds[iWinst], fmt(winst));
+      setText(tds[iVerlies], fmt(verlies));
+    }
+  }
+
+  function forceDashboard(){
+    // bereken uit storage (betrouwbaarst). Als 0, laat het toch gewoon zetten.
+    const inv = sumNetFromStorage("invest");
+    const cry = sumNetFromStorage("crypto");
+
+    const invNode = findDashValueByLabel("Beleggingen (netto)");
+    const cryNode = findDashValueByLabel("Crypto (netto)");
+
+    if (invNode) setText(invNode, fmt(inv));
+    if (cryNode) setText(cryNode, fmt(cry));
+  }
+
+  function tick(){
+    recalcTable("Beleggingen");
+    recalcTable("Crypto");
+    forceDashboard();
+  }
+
+  // realtime
+  document.addEventListener("input", tick, true);
+  document.addEventListener("change", tick, true);
+  window.addEventListener("focus", tick);
+  document.addEventListener("visibilitychange", tick);
+  setInterval(tick, 250);
+
+  // eerste run
+  tick();
+})();
+
