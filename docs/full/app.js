@@ -1,3 +1,19 @@
+/* KGB_COMPAT_YEAROF */
+(function () {
+  // Zorg dat Full niet crasht als yearOf ontbreekt
+  if (typeof window.yearOf !== "function") {
+    window.yearOf = function (dateLike) {
+      try {
+        const d = (dateLike instanceof Date) ? dateLike : new Date(dateLike);
+        const y = d.getFullYear();
+        return Number.isFinite(y) ? y : (new Date()).getFullYear();
+      } catch (e) {
+        return (new Date()).getFullYear();
+      }
+    };
+  }
+})();
+
 const KEY="kgb_finance_data_v1";
 const THEME="kgb_finance_theme_v1";
 const PREF="kgb_finance_pref_v1";
