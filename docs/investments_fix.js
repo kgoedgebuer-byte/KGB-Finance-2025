@@ -1,17 +1,20 @@
-/* KGB Finance — Investments hard-fix (single source of truth)
-   Rules:
-   netto = (verkoop - aankoop) * aantal + dividend
-   winst = max(netto, 0)
-   verlies = max(-netto, 0)
+/* KGB Finance — Investments + Chart FIX v2
+   - Supports split tables:
+     T1: Datum/Aandeel/Aantal/Aankoop
+     T2: Aankoop/Verkoop/Dividend/Winst/Verlies/Acties
+   - Calculation (per row):
+     net = (verkoop - aankoop) * aantal + dividend
+     winst = max(net,0), verlies = max(-net,0)
+   - Dashboard “Beleggingen (netto)” updated
+   - Graph (Lijn/Balk/Cirkel) rebuilt using Chart.js and card values
 */
-(function(){
+(function () {
+  const SAFE = (fn) => { try { return fn(); } catch(e){ /* console.warn(e); */ } };
+
   function toNum(v){
     if (v === null || v === undefined) return 0;
     if (typeof v === "number") return isFinite(v) ? v : 0;
-    const s = String(v).trim()
-      .replace(/\s/g,"")
-      .replace(/\./g,"")
-      .replace(",",".");
+    const s = String(v).trim().replace(/\s/g,"").replace(/\./g,"").replace(",",".");
     const n = parseFloat(s);
     return isFinite(n) ? n : 0;
   }
@@ -19,194 +22,292 @@
     const x = isFinite(n) ? n : 0;
     return x.toLocaleString("nl-BE",{minimumFractionDigits:2,maximumFractionDigits:2});
   }
-  function getYear(){
-    const m = (location.pathname||"").match(/(20\d{2})/);
-    return m ? m[1] : "2025";
-  }
-  function storageKey(){
-    return `kgb_finance_${getYear()}_beleggingen_fix`;
-  }
 
-  function findInvestmentsTable(){
+  function findTableByHeaders(need){
     const tables = Array.from(document.querySelectorAll("table"));
     for (const t of tables){
       const ths = Array.from(t.querySelectorAll("thead th")).map(x => (x.textContent||"").trim().toLowerCase());
-      const need = ["aandeel","aantal","aankoop","verkoop","dividend","winst","verlies"];
       const ok = need.every(k => ths.some(h => h.includes(k)));
       if (ok) return t;
     }
     return null;
   }
-
-  function mapHeaderIdx(table){
+  function headerIdx(table){
     const ths = Array.from(table.querySelectorAll("thead th")).map(x => (x.textContent||"").trim().toLowerCase());
-    const idx = {};
-    function pick(key){
-      const i = ths.findIndex(h => h.includes(key));
+    const pick = (k) => {
+      const i = ths.findIndex(h => h.includes(k));
       return i >= 0 ? i : null;
-    }
-    idx.datum   = pick("datum");
-    idx.aandeel = pick("aandeel");
-    idx.aantal  = pick("aantal");
-    idx.aankoop = pick("aankoop");
-    idx.verkoop = pick("verkoop");
-    idx.dividend= pick("dividend");
-    idx.winst   = pick("winst");
-    idx.verlies = pick("verlies");
-    return idx;
-  }
-
-  function getCellInput(cell){
-    if (!cell) return null;
-    return cell.querySelector("input, select, textarea");
-  }
-  function readCellValue(cell){
-    const inp = getCellInput(cell);
-    if (inp) return inp.value;
-    return (cell.textContent||"").trim();
-  }
-  function writeCellValue(cell, value){
-    if (!cell) return;
-    const inp = getCellInput(cell);
-    if (inp){
-      // als het een input is, schrijf erin
-      inp.value = value;
-    } else {
-      cell.textContent = value;
-    }
-  }
-
-  function calcRow(qty,buy,sell,div){
-    const net = (sell - buy) * qty + div;
+    };
     return {
-      net,
-      winst: net >= 0 ? net : 0,
-      verlies: net < 0 ? -net : 0
+      datum: pick("datum"),
+      aandeel: pick("aandeel"),
+      aantal: pick("aantal"),
+      aankoop: pick("aankoop"),
+      verkoop: pick("verkoop"),
+      dividend: pick("dividend"),
+      winst: pick("winst"),
+      verlies: pick("verlies"),
     };
   }
-
-  function extractRows(table, idx){
+  function bodyRows(table){
     const body = table.querySelector("tbody") || table;
-    const trs = Array.from(body.querySelectorAll("tr"));
-    return trs.map(tr => {
-      const tds = Array.from(tr.children);
-      const row = {
-        datum: idx.datum!=null ? readCellValue(tds[idx.datum]) : "",
-        aandeel: idx.aandeel!=null ? readCellValue(tds[idx.aandeel]) : "",
-        aantal: idx.aantal!=null ? readCellValue(tds[idx.aantal]) : "",
-        aankoop: idx.aankoop!=null ? readCellValue(tds[idx.aankoop]) : "",
-        verkoop: idx.verkoop!=null ? readCellValue(tds[idx.verkoop]) : "",
-        dividend: idx.dividend!=null ? readCellValue(tds[idx.dividend]) : ""
-      };
-      return row;
-    });
+    return Array.from(body.querySelectorAll("tr"));
+  }
+  function cell(tr, idx){
+    if (idx === null || idx === undefined) return null;
+    const tds = Array.from(tr.children);
+    return tds[idx] || null;
+  }
+  function inputOf(cell){
+    return cell ? cell.querySelector("input, select, textarea") : null;
+  }
+  function readCell(cell){
+    const inp = inputOf(cell);
+    return inp ? inp.value : (cell ? (cell.textContent||"").trim() : "");
+  }
+  function writeCell(cell, value){
+    const inp = inputOf(cell);
+    if (inp) inp.value = value;
+    else if (cell) cell.textContent = value;
   }
 
-  function restoreRows(table, idx){
+  function getYear(){
+    const m = (location.pathname||"").match(/(20\d{2})/);
+    return m ? m[1] : "2025";
+  }
+  function storageKey(){
+    return `kgb_finance_${getYear()}_beleggingen_v2`;
+  }
+
+  // --- DASHBOARD helpers ---
+  function setCardValue(labelContains, val){
+    const all = Array.from(document.querySelectorAll("*"));
+    const label = all.find(el => (el.textContent||"").trim().includes(labelContains));
+    if (!label) return;
+    const card = label.closest("div") || label.parentElement;
+    if (!card) return;
+    // pick first numeric-looking element different than label
+    const candidates = Array.from(card.querySelectorAll("*"))
+      .filter(el => el !== label)
+      .filter(el => (el.textContent||"").match(/-?\d[\d\.\,\s]*\d/));
+    const valueEl = candidates[0];
+    if (valueEl) valueEl.textContent = euro(val);
+  }
+
+  function readCardValue(labelContains){
+    const all = Array.from(document.querySelectorAll("*"));
+    const label = all.find(el => (el.textContent||"").trim().includes(labelContains));
+    if (!label) return 0;
+    const card = label.closest("div") || label.parentElement;
+    if (!card) return 0;
+    const candidates = Array.from(card.querySelectorAll("*"))
+      .filter(el => el !== label)
+      .map(el => (el.textContent||"").trim())
+      .filter(t => t.match(/-?\d/));
+    return candidates.length ? toNum(candidates[0]) : 0;
+  }
+
+  // --- CALC ---
+  function calc(netQty, buy, sell, div){
+    const net = (sell - buy) * netQty + div;
+    return { net, winst: net >= 0 ? net : 0, verlies: net < 0 ? -net : 0 };
+  }
+
+  // Find your two tables
+  function getTables(){
+    const tMain = findTableByHeaders(["datum","aandeel","aantal","aankoop"]);
+    const tCalc = findTableByHeaders(["verkoop","dividend","winst","verlies"]);
+    return { tMain, tCalc };
+  }
+
+  function loadSaved(tMain, tCalc){
     const raw = localStorage.getItem(storageKey());
     if (!raw) return;
-    let saved;
-    try { saved = JSON.parse(raw); } catch(e){ return; }
+    let saved; try { saved = JSON.parse(raw); } catch(e){ return; }
     if (!Array.isArray(saved)) return;
 
-    const body = table.querySelector("tbody") || table;
-    const trs = Array.from(body.querySelectorAll("tr"));
-    for (let i=0;i<Math.min(trs.length, saved.length);i++){
-      const tr = trs[i];
-      const tds = Array.from(tr.children);
+    const iMain = tMain ? headerIdx(tMain) : null;
+    const iCalc = tCalc ? headerIdx(tCalc) : null;
+    const rMain = tMain ? bodyRows(tMain) : [];
+    const rCalc = tCalc ? bodyRows(tCalc) : [];
+
+    for (let i=0;i<saved.length;i++){
       const s = saved[i] || {};
-      if (idx.datum!=null)   writeCellValue(tds[idx.datum], s.datum ?? "");
-      if (idx.aandeel!=null) writeCellValue(tds[idx.aandeel], s.aandeel ?? "");
-      if (idx.aantal!=null)  writeCellValue(tds[idx.aantal], s.aantal ?? "");
-      if (idx.aankoop!=null) writeCellValue(tds[idx.aankoop], s.aankoop ?? "");
-      if (idx.verkoop!=null) writeCellValue(tds[idx.verkoop], s.verkoop ?? "");
-      if (idx.dividend!=null)writeCellValue(tds[idx.dividend], s.dividend ?? "");
+      if (rMain[i] && iMain){
+        if (iMain.datum!=null)   writeCell(cell(rMain[i], iMain.datum), s.datum ?? "");
+        if (iMain.aandeel!=null) writeCell(cell(rMain[i], iMain.aandeel), s.aandeel ?? "");
+        if (iMain.aantal!=null)  writeCell(cell(rMain[i], iMain.aantal), s.aantal ?? "");
+        if (iMain.aankoop!=null) writeCell(cell(rMain[i], iMain.aankoop), s.aankoop ?? "");
+      }
+      if (rCalc[i] && iCalc){
+        if (iCalc.aankoop!=null) writeCell(cell(rCalc[i], iCalc.aankoop), s.aankoop ?? "");
+        if (iCalc.verkoop!=null) writeCell(cell(rCalc[i], iCalc.verkoop), s.verkoop ?? "");
+        if (iCalc.dividend!=null)writeCell(cell(rCalc[i], iCalc.dividend), s.dividend ?? "");
+      }
     }
   }
 
-  function updateDashboardInvestNet(totalNet){
-    // probeer het kaartje te vinden met label "Beleggingen (netto)"
-    const all = Array.from(document.querySelectorAll("*"));
-    const labelEl = all.find(el => (el.textContent||"").trim().includes("Beleggingen (netto)"));
-    if (!labelEl) return;
+  function saveState(tMain, tCalc){
+    const iMain = tMain ? headerIdx(tMain) : null;
+    const iCalc = tCalc ? headerIdx(tCalc) : null;
+    const rMain = tMain ? bodyRows(tMain) : [];
+    const rCalc = tCalc ? bodyRows(tCalc) : [];
+    const n = Math.max(rMain.length, rCalc.length);
+    const out = [];
 
-    // Zoek in dezelfde "card" naar een grote waarde
-    const card = labelEl.closest("div") || labelEl.parentElement;
-    if (!card) return;
-
-    // 1) eerst: element met cijfer-achtige text (niet de label zelf)
-    const candidates = Array.from(card.querySelectorAll("*"))
-      .filter(el => el !== labelEl)
-      .filter(el => (el.textContent||"").match(/-?\d[\d\.\,\s]*\d/));
-
-    // kies de eerste die er uitziet als "waarde"
-    const valueEl = candidates[0] || null;
-    if (valueEl) valueEl.textContent = euro(totalNet);
+    for (let i=0;i<n;i++){
+      const o = {};
+      if (rMain[i] && iMain){
+        o.datum   = iMain.datum!=null ? readCell(cell(rMain[i], iMain.datum)) : "";
+        o.aandeel = iMain.aandeel!=null ? readCell(cell(rMain[i], iMain.aandeel)) : "";
+        o.aantal  = iMain.aantal!=null ? readCell(cell(rMain[i], iMain.aantal)) : "";
+        o.aankoop = iMain.aankoop!=null ? readCell(cell(rMain[i], iMain.aankoop)) : "";
+      }
+      if (rCalc[i] && iCalc){
+        // prefer aankoop from calc table if present
+        const buy2 = iCalc.aankoop!=null ? readCell(cell(rCalc[i], iCalc.aankoop)) : "";
+        if (buy2 !== "") o.aankoop = buy2;
+        o.verkoop  = iCalc.verkoop!=null ? readCell(cell(rCalc[i], iCalc.verkoop)) : "";
+        o.dividend = iCalc.dividend!=null ? readCell(cell(rCalc[i], iCalc.dividend)) : "";
+      }
+      out.push(o);
+    }
+    localStorage.setItem(storageKey(), JSON.stringify(out));
   }
 
   function recalcAll(){
-    const table = findInvestmentsTable();
-    if (!table) return;
-    const idx = mapHeaderIdx(table);
+    const { tMain, tCalc } = getTables();
+    if (!tMain && !tCalc) return;
 
-    const body = table.querySelector("tbody") || table;
-    const trs = Array.from(body.querySelectorAll("tr"));
+    const iMain = tMain ? headerIdx(tMain) : null;
+    const iCalc = tCalc ? headerIdx(tCalc) : null;
+    const rMain = tMain ? bodyRows(tMain) : [];
+    const rCalc = tCalc ? bodyRows(tCalc) : [];
+    const n = Math.max(rMain.length, rCalc.length);
+
     let totalNet = 0;
 
-    trs.forEach(tr => {
-      const tds = Array.from(tr.children);
-      const qty = idx.aantal!=null ? toNum(readCellValue(tds[idx.aantal])) : 0;
-      const buy = idx.aankoop!=null ? toNum(readCellValue(tds[idx.aankoop])) : 0;
-      const sell= idx.verkoop!=null ? toNum(readCellValue(tds[idx.verkoop])) : 0;
-      const div = idx.dividend!=null? toNum(readCellValue(tds[idx.dividend])): 0;
+    for (let i=0;i<n;i++){
+      const qty = (rMain[i] && iMain && iMain.aantal!=null) ? toNum(readCell(cell(rMain[i], iMain.aantal))) : 0;
 
-      const r = calcRow(qty,buy,sell,div);
+      let buy = 0;
+      if (rCalc[i] && iCalc && iCalc.aankoop!=null) buy = toNum(readCell(cell(rCalc[i], iCalc.aankoop)));
+      if (!buy && rMain[i] && iMain && iMain.aankoop!=null) buy = toNum(readCell(cell(rMain[i], iMain.aankoop)));
+
+      const sell = (rCalc[i] && iCalc && iCalc.verkoop!=null) ? toNum(readCell(cell(rCalc[i], iCalc.verkoop))) : 0;
+      const div  = (rCalc[i] && iCalc && iCalc.dividend!=null)? toNum(readCell(cell(rCalc[i], iCalc.dividend))) : 0;
+
+      const r = calc(qty, buy, sell, div);
       totalNet += r.net;
 
-      if (idx.winst!=null)   writeCellValue(tds[idx.winst], euro(r.winst));
-      if (idx.verlies!=null) writeCellValue(tds[idx.verlies], euro(r.verlies));
-    });
+      // write winst/verlies in calc table (that’s what user sees)
+      if (rCalc[i] && iCalc){
+        if (iCalc.winst!=null)   writeCell(cell(rCalc[i], iCalc.winst), euro(r.winst));
+        if (iCalc.verlies!=null) writeCell(cell(rCalc[i], iCalc.verlies), euro(r.verlies));
+      }
+    }
 
-    // save rows
-    const rows = extractRows(table, idx);
-    localStorage.setItem(storageKey(), JSON.stringify(rows));
+    setCardValue("Beleggingen (netto)", totalNet);
+    saveState(tMain, tCalc);
 
-    // update dashboard
-    updateDashboardInvestNet(totalNet);
+    // update graph
+    SAFE(() => renderGraph());
   }
 
-  function hook(){
-    const table = findInvestmentsTable();
-    if (!table) return;
+  // --- GRAPH FIX (Chart.js) ---
+  let chart = null;
 
-    const idx = mapHeaderIdx(table);
-    restoreRows(table, idx);
+  function findGraphCanvas(){
+    // pick first canvas on dashboard area
+    const canvases = Array.from(document.querySelectorAll("canvas"));
+    return canvases[0] || null;
+  }
 
-    // luister naar ALLE input changes binnen die tabel
-    table.addEventListener("input", (e) => {
-      const el = e.target;
-      if (!el) return;
-      // alleen reageren op de relevante velden
-      recalcAll();
-    }, {passive:true});
+  function getSelectedGraphType(){
+    // UI has: Grafiek: Lijn / Balk / Cirkel (radio’s or clickable labels)
+    // We'll read checked radio if present, else fallback to "lijn"
+    const radios = Array.from(document.querySelectorAll('input[type="radio"]'));
+    const hit = radios.find(r => r.checked && (r.value || r.id));
+    const v = hit ? String(hit.value || hit.id).toLowerCase() : "";
+    if (v.includes("balk") || v.includes("bar")) return "bar";
+    if (v.includes("cirkel") || v.includes("pie")) return "pie";
+    return "line";
+  }
 
-    // ook bij klik op “Toevoegen” of delete knoppen: herberekenen na microtask
+  function renderGraph(){
+    if (!window.Chart) return; // Chart.js not loaded
+    const canvas = findGraphCanvas();
+    if (!canvas) return;
+
+    const inkomen = readCardValue("Inkomen");
+    const uitgave = readCardValue("Uitgave");
+    const crypto  = readCardValue("Crypto (netto)");
+    const beleg   = readCardValue("Beleggingen (netto)");
+
+    const type = getSelectedGraphType();
+
+    const data = {
+      labels: ["Inkomen","Uitgave","Crypto","Beleggingen"],
+      datasets: [{
+        label: "Netto",
+        data: [inkomen, uitgave, crypto, beleg]
+      }]
+    };
+
+    if (chart) { chart.destroy(); chart = null; }
+
+    chart = new window.Chart(canvas.getContext("2d"), {
+      type,
+      data,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: (type === "pie") ? {} : {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function hookGraphControls(){
+    // Re-render graph when user clicks labels or radios
     document.addEventListener("click", (e) => {
       const t = e.target;
       if (!t) return;
       const txt = (t.textContent||"").toLowerCase();
-      if (txt.includes("toevoegen") || t.closest("button")){
-        setTimeout(recalcAll, 0);
+      if (txt.includes("lijn") || txt.includes("balk") || txt.includes("cirkel")){
+        setTimeout(() => SAFE(() => renderGraph()), 0);
       }
     }, true);
 
-    // init
-    recalcAll();
-    // na 1s nog eens (voor als app later render’d)
-    setTimeout(recalcAll, 1000);
+    document.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t && t.matches && t.matches('input[type="radio"]')){
+        setTimeout(() => SAFE(() => renderGraph()), 0);
+      }
+    }, true);
   }
 
-  if (document.readyState === "loading"){
+  function hook(){
+    const { tMain, tCalc } = getTables();
+    if (tMain || tCalc) loadSaved(tMain, tCalc);
+
+    // recalc on any input across page (safe + simple)
+    document.addEventListener("input", () => SAFE(recalcAll), { passive:true });
+    document.addEventListener("change", () => SAFE(recalcAll), { passive:true });
+
+    // clicks like “Toevoegen”, delete, etc.
+    document.addEventListener("click", () => setTimeout(() => SAFE(recalcAll), 0), true);
+
+    hookGraphControls();
+
+    SAFE(recalcAll);
+    setTimeout(() => SAFE(recalcAll), 500);
+    setTimeout(() => SAFE(recalcAll), 1500);
+  }
+
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", hook);
   } else {
     hook();
