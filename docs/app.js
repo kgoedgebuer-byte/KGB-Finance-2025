@@ -214,3 +214,8 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 }))
 
 ensure(); refresh();
+
+
+// BUILD TAG
+window.__BUILD__ = "build-20260104-162844";
+console.log("KGB BUILD:", window.__BUILD__);
