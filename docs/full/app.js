@@ -849,12 +849,7 @@ refresh();
 
 
 
-/* KGB_FULL_CASHFLOW_FIX_V6
-   - Elke rij = transactie (aankoop/verk/verkoop/dividend zijn TOTAALBEDRAGEN)
-   - Netto per rij = (verkoop + dividend - aankoop)
-   - Winst/Verlies kolommen tonen netto per rij (positief => winst, negatief => verlies)
-   - Dashboard "Beleggingen (netto)" en "Crypto (netto)" = som van alle rijen (cashflow)
-*/
+
 (function(){
   function norm(s){ return (s||"").toString().trim().toLowerCase(); }
 
@@ -965,6 +960,191 @@ refresh();
   window.addEventListener("focus", tick);
   document.addEventListener("visibilitychange", tick);
   setInterval(tick, 250);
+  tick();
+})();
+
+
+
+
+/* KGB_FULL_MODE_TOGGLE_V7
+   - Toggle: "Per stuk" vs "Totaal"
+   - Per stuk: bedrag * aantal
+   - Totaal: bedrag zoals ingevoerd
+   - Netto rij = (verkoop + dividend - aankoop)
+*/
+(function(){
+  const LS_KEY = "kgb_full_value_mode_v7"; // "per" | "total"
+  function getMode(){ return (localStorage.getItem(LS_KEY) || "per"); }
+  function setMode(m){ localStorage.setItem(LS_KEY, m); }
+
+  function norm(s){ return (s||"").toString().trim().toLowerCase(); }
+
+  function parseMoney(v){
+    if (v===null || v===undefined) return 0;
+    let s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace(/[^0-9,\.\-]/g,"");
+    const ld = s.lastIndexOf(".");
+    const lc = s.lastIndexOf(",");
+    if (ld !== -1 && lc !== -1){
+      if (lc > ld) s = s.replace(/\./g,"").replace(/,/g,".");
+      else s = s.replace(/,/g,"");
+    } else if (lc !== -1){
+      s = s.replace(/,/g,".");
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function fmt(n){
+    const sign = n < 0 ? "-" : "";
+    n = Math.abs(n);
+    const s = n.toFixed(2).split(".");
+    const a = s[0].replace(/\B(?=(\d{3})+(?!\d))/g,".");
+    return sign + a + "," + s[1];
+  }
+
+  function setCellText(td, txt){
+    if (!td) return;
+    const t = String(txt);
+    if ((td.textContent||"").trim() !== t) td.textContent = t;
+  }
+
+  function ensureToggleNearTitle(sectionTitle){
+    const heading = Array.from(document.querySelectorAll("h1,h2,h3,div,b,strong"))
+      .find(n => norm(n.textContent) === norm(sectionTitle));
+    if (!heading) return;
+
+    const root = heading.closest("section") || heading.parentElement || document;
+    if (root.querySelector("[data-kgb-toggle='mode']")) return;
+
+    const wrap = document.createElement("div");
+    wrap.style.display = "flex";
+    wrap.style.gap = "10px";
+    wrap.style.alignItems = "center";
+    wrap.style.margin = "10px 0 8px 0";
+    wrap.style.flexWrap = "wrap";
+
+    const label = document.createElement("div");
+    label.textContent = "Berekening:";
+    label.style.fontWeight = "600";
+
+    const btnPer = document.createElement("button");
+    btnPer.textContent = "Per stuk";
+    btnPer.style.padding = "6px 10px";
+    btnPer.style.borderRadius = "10px";
+    btnPer.style.border = "1px solid rgba(0,0,0,.15)";
+    btnPer.style.cursor = "pointer";
+
+    const btnTot = document.createElement("button");
+    btnTot.textContent = "Totaal";
+    btnTot.style.padding = "6px 10px";
+    btnTot.style.borderRadius = "10px";
+    btnTot.style.border = "1px solid rgba(0,0,0,.15)";
+    btnTot.style.cursor = "pointer";
+
+    function paint(){
+      const m = getMode();
+      btnPer.style.opacity = (m==="per") ? "1" : ".5";
+      btnTot.style.opacity = (m==="total") ? "1" : ".5";
+    }
+    btnPer.onclick = () => { setMode("per"); paint(); tick(); };
+    btnTot.onclick = () => { setMode("total"); paint(); tick(); };
+
+    wrap.setAttribute("data-kgb-toggle","mode");
+    wrap.appendChild(label);
+    wrap.appendChild(btnPer);
+    wrap.appendChild(btnTot);
+
+    // plaats onder titel en boven inputvelden
+    const after = heading.nextElementSibling;
+    if (after) after.parentElement.insertBefore(wrap, after);
+    else heading.parentElement.appendChild(wrap);
+
+    paint();
+  }
+
+  function findDashValueByLabel(labelText){
+    const nodes = Array.from(document.querySelectorAll("*"));
+    const lab = nodes.find(n => norm(n.textContent) === norm(labelText));
+    if (!lab) return null;
+    const card = lab.closest("div") || lab.parentElement;
+    if (!card) return null;
+    const val = Array.from(card.querySelectorAll("div,span,p,strong,b,h1,h2,h3"))
+      .find(n => n !== lab && /-?\d/.test((n.textContent||"")));
+    return val || null;
+  }
+
+  function recalcVisibleTable(sectionTitle){
+    const heading = Array.from(document.querySelectorAll("h1,h2,h3,div,b,strong"))
+      .find(n => norm(n.textContent) === norm(sectionTitle));
+    if (!heading) return { net: 0 };
+
+    const root = heading.closest("section") || heading.parentElement || document;
+    const table = root.querySelector("table");
+    if (!table) return { net: 0 };
+
+    const ths = Array.from(table.querySelectorAll("thead th, th")).map(th => norm(th.textContent));
+    const col = (name) => ths.findIndex(x => x === norm(name));
+
+    const iAantal   = col("aantal");
+    const iAankoop  = col("aankoop");
+    const iVerkoop  = col("verkoop");
+    const iDividend = col("dividend");
+    const iWinst    = col("winst");
+    const iVerlies  = col("verlies");
+
+    if (iAankoop < 0 || iVerkoop < 0 || iWinst < 0 || iVerlies < 0) return { net: 0 };
+
+    const mode = getMode(); // "per" of "total"
+    let totalNet = 0;
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+
+    for (const tr of rows){
+      const tds = Array.from(tr.querySelectorAll("td"));
+      if (!tds.length) continue;
+
+      const qty = iAantal >= 0 ? parseMoney((tds[iAantal]?.querySelector("input")||{}).value) : 1;
+      const mult = (mode === "per" ? (qty || 1) : 1);
+
+      const aankoop = parseMoney((tds[iAankoop]?.querySelector("input")||{}).value) * mult;
+      const verkoop = parseMoney((tds[iVerkoop]?.querySelector("input")||{}).value) * mult;
+      const dividend = iDividend >= 0 ? parseMoney((tds[iDividend]?.querySelector("input")||{}).value) : 0;
+
+      const net = (verkoop + dividend) - aankoop;
+      totalNet += net;
+
+      const winst = net > 0 ? net : 0;
+      const verlies = net < 0 ? -net : 0;
+
+      setCellText(tds[iWinst], fmt(winst));
+      setCellText(tds[iVerlies], fmt(verlies));
+    }
+
+    return { net: totalNet };
+  }
+
+  function tick(){
+    ensureToggleNearTitle("Beleggingen");
+    ensureToggleNearTitle("Crypto");
+
+    const inv = recalcVisibleTable("Beleggingen").net;
+    const cry = recalcVisibleTable("Crypto").net;
+
+    window.__KGB_FULL_LAST_INV = inv;
+    window.__KGB_FULL_LAST_CRY = cry;
+
+    const invNode = findDashValueByLabel("Beleggingen (netto)");
+    const cryNode = findDashValueByLabel("Crypto (netto)");
+    if (invNode) invNode.textContent = fmt(inv || 0);
+    if (cryNode) cryNode.textContent = fmt(cry || 0);
+  }
+
+  document.addEventListener("input", tick, true);
+  document.addEventListener("change", tick, true);
+  window.addEventListener("focus", tick);
+  document.addEventListener("visibilitychange", tick);
+  setInterval(tick, 300);
   tick();
 })();
 
